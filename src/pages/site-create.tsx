@@ -244,11 +244,13 @@ export function SiteCreatePage() {
                   </SelectTrigger>
                   <SelectPopup>
                     <SelectItem value="">admin (no quota)</SelectItem>
-                    {(users.data ?? []).map((u) => (
-                      <SelectItem key={u.name} value={u.name}>
-                        {u.name}
-                      </SelectItem>
-                    ))}
+                    {(users.data ?? [])
+                      .filter((u) => u.role !== "admin")
+                      .map((u) => (
+                        <SelectItem key={u.name} value={u.name}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
                   </SelectPopup>
                 </Select>
               </div>

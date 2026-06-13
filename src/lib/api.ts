@@ -177,8 +177,9 @@ export interface UptimeConfig {
 }
 
 export interface UptimeStatus extends UptimeConfig {
-  uptime_percent: number
-  avg_response_ms: number
+  // Absent until the first check has run.
+  uptime_percent?: number
+  avg_response_ms?: number
   total_checks: number
 }
 

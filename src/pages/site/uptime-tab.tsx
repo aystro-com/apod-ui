@@ -179,13 +179,13 @@ export function UptimeTab({ site }: { site: Site }) {
             <div>
               <p className="text-muted-foreground text-xs">Uptime</p>
               <p className="font-semibold text-2xl tabular-nums">
-                {s.uptime_percent.toFixed(2)}%
+                {s.uptime_percent != null ? `${s.uptime_percent.toFixed(2)}%` : "—"}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Avg response</p>
               <p className="font-semibold text-2xl tabular-nums">
-                {s.avg_response_ms} ms
+                {s.avg_response_ms != null ? `${s.avg_response_ms} ms` : "—"}
               </p>
             </div>
             <div>
