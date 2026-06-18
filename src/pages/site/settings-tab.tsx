@@ -37,6 +37,38 @@ const CONFIG_FIELDS: Array<{ key: string; label: string; placeholder: string }> 
   { key: "branch", label: "Git branch", placeholder: "main" },
 ]
 
+// fieldError mirrors the server-side validation (engine.validateConfigValue) so
+// mistakes are caught before save. Returns a message, or null when valid.
+function fieldError(key: string, value: string): string | null {
+  const v = value.trim()
+  switch (key) {
+    case "ram":
+    case "storage":
+      if (v === "") return "Required — an integer + M or G (e.g. 512M, 2G)."
+      return /^\d+[MG]$/i.test(v)
+        ? null
+        : "Use an integer followed by M or G (e.g. 512M, 2G)."
+    case "cpu": {
+      const n = Number(v)
+      return v !== "" && /^\d+(\.\d+)?$/.test(v) && n > 0 && n <= 256
+        ? null
+        : "A positive number of cores (e.g. 0.5, 1, 2)."
+    }
+    case "repo":
+      if (v === "") return null
+      return /^(https?:\/\/|git@|ssh:\/\/|git:\/\/)/.test(v) && !v.includes("::")
+        ? null
+        : "Must be an http(s) or ssh git URL."
+    case "branch":
+      if (v === "") return null
+      return /^[A-Za-z0-9._/-]+$/.test(v) && !v.startsWith("-") && !v.includes("..")
+        ? null
+        : "Only letters, digits and ._/- are allowed."
+    default:
+      return null
+  }
+}
+
 export function SettingsTab({ site }: { site: Site }) {
   const { api, session } = useApi()
   const navigate = useNavigate()
@@ -60,6 +92,12 @@ export function SettingsTab({ site }: { site: Site }) {
   const [purge, setPurge] = useState(false)
 
   const values: Record<string, string> = { ...config.data, ...edits }
+
+  // Only block on fields the user actually changed, so a pre-existing empty
+  // optional field (e.g. no disk quota set yet) doesn't wedge the form.
+  const hasErrors = Object.keys(edits).some(
+    (key) => fieldError(key, edits[key] ?? "") !== null,
+  )
 
   const save = useAction({
     fn: async () => {
@@ -129,23 +167,38 @@ export function SettingsTab({ site }: { site: Site }) {
           {config.data && (
             <form className="flex flex-col gap-4" onSubmit={handleSave}>
               <div className="grid gap-4 sm:grid-cols-2">
-                {CONFIG_FIELDS.map(({ key, label, placeholder }) => (
-                  <div key={key} className="flex flex-col gap-2">
-                    <Label htmlFor={`cfg-${key}`}>{label}</Label>
-                    <Input
-                      id={`cfg-${key}`}
-                      placeholder={placeholder}
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={values[key] ?? ""}
-                      onChange={(e) =>
-                        setEdits((v) => ({ ...v, [key]: e.target.value }))
-                      }
-                    />
-                  </div>
-                ))}
+                {CONFIG_FIELDS.map(({ key, label, placeholder }) => {
+                  // Show the error only once the user has touched the field.
+                  const err =
+                    key in edits ? fieldError(key, edits[key] ?? "") : null
+                  return (
+                    <div key={key} className="flex flex-col gap-2">
+                      <Label htmlFor={`cfg-${key}`}>{label}</Label>
+                      <Input
+                        id={`cfg-${key}`}
+                        placeholder={placeholder}
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-invalid={err ? true : undefined}
+                        value={values[key] ?? ""}
+                        onChange={(e) =>
+                          setEdits((v) => ({ ...v, [key]: e.target.value }))
+                        }
+                      />
+                      {err && (
+                        <span className="text-destructive-foreground text-xs">
+                          {err}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-              <Button type="submit" className="self-start" disabled={save.isPending}>
+              <Button
+                type="submit"
+                className="self-start"
+                disabled={save.isPending || hasErrors}
+              >
                 {save.isPending ? <Spinner className="size-4" /> : <SaveIcon />}
                 Save changes
               </Button>

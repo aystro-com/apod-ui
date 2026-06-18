@@ -48,6 +48,17 @@ describe("SettingsTab", () => {
     })
   })
 
+  it("blocks saving an invalid resource value", async () => {
+    setup()
+    renderWithProviders(<SettingsTab site={site} />)
+    const user = userEvent.setup()
+    const ram = await screen.findByLabelText(/ram/i)
+    await user.clear(ram)
+    await user.type(ram, "2GB") // common mistake — should be 2G
+    expect(await screen.findByText(/integer followed by M or G/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled()
+  })
+
   it("requires typing the domain before destroying the site", async () => {
     const { calls } = setup({
       "DELETE /api/v1/sites/example.com": { status: "destroyed" },
