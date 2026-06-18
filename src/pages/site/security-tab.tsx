@@ -65,6 +65,12 @@ export function SecurityTab({ site }: { site: Site }) {
     queryFn: () => api.listFTP(site.domain),
   })
 
+  const allow = useAction({
+    fn: (address: string) => api.allowIP(site.domain, address),
+    invalidates: [["ip-rules", site.domain]],
+    successTitle: "IP allowed",
+    onSuccess: () => setIp(""),
+  })
   const block = useAction({
     fn: (address: string) => api.blockIP(site.domain, address),
     invalidates: [["ip-rules", site.domain]],
@@ -74,7 +80,7 @@ export function SecurityTab({ site }: { site: Site }) {
   const unblock = useAction({
     fn: (address: string) => api.unblockIP(site.domain, address),
     invalidates: [["ip-rules", site.domain]],
-    successTitle: "IP unblocked",
+    successTitle: "Rule removed",
   })
   const removeProxy = useAction({
     fn: (id: number) => api.removeProxyRule(site.domain, id),
@@ -96,16 +102,18 @@ export function SecurityTab({ site }: { site: Site }) {
     successTitle: "FTP account removed",
   })
 
-  function handleBlock(e: FormEvent) {
-    e.preventDefault()
+  function submitIP(action: "allow" | "block") {
     setIpError(null)
     const address = ip.trim()
     if (!isValidIP(address)) {
       setIpError("Enter a valid IP address, e.g. 203.0.113.7.")
       return
     }
-    block.mutate(address)
+    if (action === "allow") allow.mutate(address)
+    else block.mutate(address)
   }
+
+  const hasAllowRule = (ips.data ?? []).some((r) => r.action === "allow")
 
   function handleAddFtp(e: FormEvent) {
     e.preventDefault()
@@ -116,17 +124,29 @@ export function SecurityTab({ site }: { site: Site }) {
     <div className="flex max-w-3xl flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>IP blocking</CardTitle>
+          <CardTitle>IP access</CardTitle>
           <CardDescription>
-            Blocked addresses are rejected at the reverse proxy before reaching
-            the site.
+            Allow or block source addresses at the reverse proxy. Once any{" "}
+            <strong>allow</strong> rule exists, the site switches to allowlist
+            mode — only listed IPs/CIDRs can reach it.
           </CardDescription>
         </CardHeader>
         <CardPanel className="flex flex-col gap-4">
-          <form className="flex flex-wrap items-start gap-2" onSubmit={handleBlock}>
+          {hasAllowRule && (
+            <Badge variant="secondary" className="self-start">
+              Allowlist active — only allowed IPs can reach this site
+            </Badge>
+          )}
+          <form
+            className="flex flex-wrap items-start gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitIP("block")
+            }}
+          >
             <div className="flex flex-col gap-1">
               <Input
-                placeholder="203.0.113.7 (IP address)"
+                placeholder="203.0.113.7 or 10.0.0.0/8"
                 autoComplete="off"
                 spellCheck={false}
                 className="w-56 font-mono"
@@ -137,9 +157,18 @@ export function SecurityTab({ site }: { site: Site }) {
                 <p className="text-destructive-foreground text-xs">{ipError}</p>
               )}
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!ip.trim() || allow.isPending}
+              onClick={() => submitIP("allow")}
+            >
+              {allow.isPending ? <Spinner className="size-4" /> : <PlusIcon />}
+              Allow
+            </Button>
             <Button type="submit" disabled={!ip.trim() || block.isPending}>
               {block.isPending ? <Spinner className="size-4" /> : <BanIcon />}
-              Block IP
+              Block
             </Button>
           </form>
 
@@ -147,7 +176,7 @@ export function SecurityTab({ site }: { site: Site }) {
           {ips.isError && <ErrorState error={ips.error} />}
           {ips.data &&
             (ips.data.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No blocked IPs.</p>
+              <p className="text-muted-foreground text-sm">No IP rules.</p>
             ) : (
               <Table>
                 <TableHeader>
@@ -164,7 +193,13 @@ export function SecurityTab({ site }: { site: Site }) {
                         <code className="font-mono text-sm">{rule.ip}</code>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{rule.action}</Badge>
+                        <Badge
+                          variant={
+                            rule.action === "allow" ? "secondary" : "outline"
+                          }
+                        >
+                          {rule.action}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -173,7 +208,7 @@ export function SecurityTab({ site }: { site: Site }) {
                           disabled={unblock.isPending}
                           onClick={() => unblock.mutate(rule.ip)}
                         >
-                          Unblock
+                          Remove
                         </Button>
                       </TableCell>
                     </TableRow>

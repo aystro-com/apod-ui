@@ -458,6 +458,8 @@ export class ApiClient {
     this.delete<unknown>(this.sitePath(domain, "/proxy"), { id })
 
   // IP rules
+  allowIP = (domain: string, ip: string) =>
+    this.post<unknown>(this.sitePath(domain, "/ip/allow"), { ip })
   blockIP = (domain: string, ip: string) =>
     this.post<unknown>(this.sitePath(domain, "/ip/block"), { ip })
   unblockIP = (domain: string, ip: string) =>
