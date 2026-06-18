@@ -78,7 +78,7 @@ function ProcessNode({
   const busy = scale.isPending || restart.isPending
 
   return (
-    <div className="w-64 rounded-lg border bg-background shadow-sm">
+    <Card className="w-64 gap-0 overflow-hidden rounded-xl">
       <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
         <span className="flex items-center gap-2 font-medium text-sm">
           {roleIconEl(proc.role)}
@@ -160,7 +160,7 @@ function ProcessNode({
           </div>
         )}
       </div>
-    </div>
+    </Card>
   )
 }
 
