@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 import type { DeployEvent } from "@/lib/api"
-import { collapseSteps, DeployProgress } from "./deploy-progress"
+import { collapseSteps } from "@/lib/deploy-steps"
+import { DeployProgress } from "./deploy-progress"
 
 const ev = (over: Partial<DeployEvent>): DeployEvent => ({
   step: "Step",

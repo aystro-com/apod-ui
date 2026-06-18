@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import {
   ClockIcon,
   CpuIcon,
@@ -9,6 +10,7 @@ import {
   RotateCwIcon,
   ServerIcon,
   ShieldCheckIcon,
+  TerminalIcon,
 } from "lucide-react"
 import { ErrorState, LoadingRows } from "@/components/data-state"
 import { Badge } from "@/components/ui/badge"
@@ -96,6 +98,36 @@ function ProcessNode({
           </span>
         </div>
 
+        {(proc.containers ?? []).length > 0 && (
+          <div className="flex flex-col gap-1 border-t pt-2">
+            {(proc.containers ?? []).map((name) => (
+              <div
+                key={name}
+                className="flex items-center justify-between gap-2"
+              >
+                <code className="truncate font-mono text-[11px] text-muted-foreground">
+                  {name}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Open console in ${name}`}
+                  title="Open console"
+                  render={
+                    <Link
+                      to="/sites/$domain/$"
+                      params={{ domain, _splat: "console" }}
+                      search={{ service: proc.service }}
+                    />
+                  }
+                >
+                  <TerminalIcon />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {proc.scalable ? (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
@@ -175,12 +207,24 @@ export function ArchitectureTab({ site }: { site: Site }) {
   if (procs.isError) return <ErrorState error={procs.error} />
 
   const all = procs.data ?? []
-  const web = all.filter((p) => p.role === "web")
-  const workers = all.filter((p) => p.role === "worker")
-  const scheduler = all.filter((p) => p.role === "scheduler")
-  const services = all.filter(
-    (p) => p.role === "" || (p.role !== "web" && p.role !== "worker" && p.role !== "scheduler"),
-  )
+  // Group by role, but only keep groups that actually have containers — sites
+  // vary (a single web container, web+db, a worker fleet, …), so we render what
+  // exists instead of forcing fixed App/Workers/Services slots with empty
+  // placeholders.
+  const knownRoles = new Set(["web", "worker", "scheduler"])
+  const groups = [
+    { key: "web", title: "Web", icon: GlobeIcon },
+    { key: "worker", title: "Workers", icon: CpuIcon },
+    { key: "scheduler", title: "Scheduler", icon: ClockIcon },
+    { key: "service", title: "Services", icon: ServerIcon },
+  ]
+    .map((g) => ({
+      ...g,
+      procs: all.filter((p) =>
+        g.key === "service" ? !knownRoles.has(p.role) : p.role === g.key,
+      ),
+    }))
+    .filter((g) => g.procs.length > 0)
 
   return (
     <div className="flex flex-col gap-4">
@@ -218,40 +262,21 @@ export function ArchitectureTab({ site }: { site: Site }) {
                 backgroundSize: "16px 16px",
               }}
             >
-            <CanvasColumn title="App" icon={GlobeIcon}>
-              {web.length === 0 ? (
-                <EmptyNode label="No web process" />
-              ) : (
-                web.map((p) => (
-                  <ProcessNode key={p.service} proc={p} domain={site.domain} />
-                ))
-              )}
-            </CanvasColumn>
-
-            <CanvasColumn title="Workers" icon={CpuIcon}>
-              {workers.length === 0 && scheduler.length === 0 ? (
-                <EmptyNode label="No background processes" />
-              ) : (
-                <>
-                  {workers.map((p) => (
-                    <ProcessNode key={p.service} proc={p} domain={site.domain} />
+            {all.length === 0 ? (
+              <EmptyNode label="No containers running" />
+            ) : (
+              groups.map((g) => (
+                <CanvasColumn key={g.key} title={g.title} icon={g.icon}>
+                  {g.procs.map((p) => (
+                    <ProcessNode
+                      key={p.service}
+                      proc={p}
+                      domain={site.domain}
+                    />
                   ))}
-                  {scheduler.map((p) => (
-                    <ProcessNode key={p.service} proc={p} domain={site.domain} />
-                  ))}
-                </>
-              )}
-            </CanvasColumn>
-
-            <CanvasColumn title="Services" icon={ServerIcon}>
-              {services.length === 0 ? (
-                <EmptyNode label="No backing services" />
-              ) : (
-                services.map((p) => (
-                  <ProcessNode key={p.service} proc={p} domain={site.domain} />
-                ))
-              )}
-            </CanvasColumn>
+                </CanvasColumn>
+              ))
+            )}
             </div>
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-muted-foreground text-xs">

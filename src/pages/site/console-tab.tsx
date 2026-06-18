@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from "react"
-import { ChevronRightIcon, TerminalIcon } from "lucide-react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useSearch } from "@tanstack/react-router"
+import { BoxIcon, ChevronRightIcon, TerminalIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,9 +12,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { useApi } from "@/lib/auth"
-import type { Site, TerminalToken } from "@/lib/api"
+import type { ProcessInfo, Site, TerminalToken } from "@/lib/api"
 
 interface HistoryEntry {
   command: string
@@ -20,9 +29,15 @@ interface HistoryEntry {
   error?: boolean
 }
 
+// The default target ("") resolves server-side to the site's primary/app
+// container, so it always works even before processes have loaded.
+const PRIMARY = ""
+
 export function ConsoleTab({ site }: { site: Site }) {
   const { api } = useApi()
+  const search = useSearch({ strict: false }) as { service?: string }
   const [token, setToken] = useState<TerminalToken | null>(null)
+  const [service, setService] = useState<string>(search.service ?? PRIMARY)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [command, setCommand] = useState("")
@@ -34,6 +49,14 @@ export function ConsoleTab({ site }: { site: Site }) {
   const expired = token ? new Date(token.expires_at).getTime() < Date.now() : false
   const active = token !== null && !expired
 
+  // The site's containers, so the operator can pick which one to open.
+  const procs = useQuery({
+    queryKey: ["processes", site.domain],
+    queryFn: () => api.listProcesses(site.domain),
+    enabled: running_site,
+  })
+  const targets = useMemo(() => buildTargets(procs.data), [procs.data])
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [history])
@@ -42,7 +65,7 @@ export function ConsoleTab({ site }: { site: Site }) {
     setStarting(true)
     setStartError(null)
     try {
-      const t = await api.createTerminalToken(site.domain)
+      const t = await api.createTerminalToken(site.domain, service || undefined)
       setToken(t)
       setHistory([])
     } catch (err) {
@@ -50,6 +73,11 @@ export function ConsoleTab({ site }: { site: Site }) {
     } finally {
       setStarting(false)
     }
+  }
+
+  function endSession() {
+    setToken(null)
+    setHistory([])
   }
 
   async function runCommand(e: FormEvent) {
@@ -90,14 +118,17 @@ export function ConsoleTab({ site }: { site: Site }) {
     )
   }
 
+  const targetLabel =
+    targets.find((t) => t.value === service)?.label ?? "Primary container"
+
   return (
     <Card className="max-w-3xl">
       <CardHeader>
         <CardTitle>Console</CardTitle>
         <CardDescription>
-          Commands run inside the site's app container — never the host.
-          Sessions are scoped to this site, expire after 5 minutes, and
-          dangerous commands are blocked server-side.
+          Commands run inside the selected container — never the host. Sessions
+          are scoped to this site, expire after 5 minutes, and dangerous
+          commands are blocked server-side.
         </CardDescription>
       </CardHeader>
       <CardPanel className="flex flex-col gap-4">
@@ -119,6 +150,24 @@ export function ConsoleTab({ site }: { site: Site }) {
                 <AlertDescription>{startError}</AlertDescription>
               </Alert>
             )}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-medium text-sm">Container</span>
+              <Select
+                value={service}
+                onValueChange={(v) => setService(v as string)}
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue>{targetLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectPopup>
+                  {targets.map((t) => (
+                    <SelectItem key={t.value || "primary"} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </div>
             <Button disabled={starting} onClick={startSession}>
               {starting ? <Spinner className="size-4" /> : <TerminalIcon />}
               Start session
@@ -128,6 +177,18 @@ export function ConsoleTab({ site }: { site: Site }) {
 
         {active && (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-muted-foreground text-sm">
+                <BoxIcon className="size-4" />
+                Connected to{" "}
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-xs">
+                  {token?.service || targetLabel}
+                </code>
+              </span>
+              <Button variant="outline" size="sm" onClick={endSession}>
+                Switch container
+              </Button>
+            </div>
             <div
               ref={scrollRef}
               className="max-h-96 min-h-48 overflow-y-auto rounded-lg border bg-zinc-950 p-4 font-mono text-xs text-zinc-100 leading-relaxed dark:bg-zinc-900"
@@ -171,4 +232,19 @@ export function ConsoleTab({ site }: { site: Site }) {
       </CardPanel>
     </Card>
   )
+}
+
+// buildTargets lists the containers a console can open: the primary container
+// first, then every service reported for the site.
+function buildTargets(
+  procs: ProcessInfo[] | undefined,
+): { value: string; label: string }[] {
+  const out = [{ value: PRIMARY, label: "Primary container" }]
+  for (const p of procs ?? []) {
+    out.push({
+      value: p.service,
+      label: p.replicas > 1 ? `${p.service} (×${p.replicas})` : p.service,
+    })
+  }
+  return out
 }

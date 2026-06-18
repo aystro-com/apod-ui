@@ -9,10 +9,10 @@ const site = makeSite()
 function setup(extra: Record<string, unknown> = {}) {
   return mockApi({
     "GET /api/v1/sites/example.com/processes": [
-      { service: "app", role: "web", image: "img", command: "", replicas: 1, running: 1, scalable: false },
-      { service: "queue", role: "worker", image: "img", command: "queue:work", replicas: 2, running: 2, scalable: true },
-      { service: "scheduler", role: "scheduler", image: "img", command: "schedule:work", replicas: 1, running: 1, scalable: false },
-      { service: "db", role: "", image: "mysql", command: "", replicas: 1, running: 1, scalable: false },
+      { service: "app", role: "web", image: "img", command: "", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-app"] },
+      { service: "queue", role: "worker", image: "img", command: "queue:work", replicas: 2, running: 2, scalable: true, containers: ["apod-example.com-queue-0", "apod-example.com-queue-1"] },
+      { service: "scheduler", role: "scheduler", image: "img", command: "schedule:work", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-scheduler"] },
+      { service: "db", role: "", image: "mysql", command: "", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-db"] },
     ],
     ...extra,
   })

@@ -70,6 +70,7 @@ export interface ProcessInfo {
   replicas: number
   running: number
   scalable: boolean
+  containers: string[]
 }
 
 export interface BackupSchedule {
@@ -269,6 +270,7 @@ export interface FirewallStatus {
 export interface TerminalToken {
   token: string
   domain: string
+  service: string
   expires_at: string
 }
 
@@ -621,8 +623,13 @@ export class ApiClient {
   allLogs = () => this.get<Operation[]>("/api/v1/logs")
 
   // Terminal
-  createTerminalToken = (domain: string) =>
-    this.post<TerminalToken>(this.sitePath(domain, "/terminal"))
+  createTerminalToken = (domain: string, service?: string) =>
+    this.post<TerminalToken>(
+      this.sitePath(
+        domain,
+        service ? `/terminal?service=${encodeURIComponent(service)}` : "/terminal",
+      ),
+    )
   terminalExec = (token: string, command: string) =>
     this.post<{ output: string }>("/api/v1/terminal/exec", { token, command })
 
