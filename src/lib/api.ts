@@ -448,6 +448,7 @@ export class ApiClient {
   startSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/start"))
   stopSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/stop"))
   restartSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/restart"))
+  updateSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/update"))
   destroySite = (domain: string, purge: boolean) =>
     this.delete<unknown>(this.sitePath(domain) + (purge ? "?purge=true" : ""))
   cloneSite = (domain: string, target: string) =>

@@ -1,23 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import type { ComponentType } from "react"
+import { type ComponentType, useRef, useState } from "react"
 import {
   ArrowLeftIcon,
+  ArrowUpCircleIcon,
   ExternalLinkIcon,
   PlayIcon,
   RotateCwIcon,
   SquareIcon,
 } from "lucide-react"
+import { DeployProgress } from "@/components/deploy-progress"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { ErrorState, LoadingRows } from "@/components/data-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardPanel,
+  CardTitle,
+} from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useApi } from "@/lib/auth"
-import type { Site } from "@/lib/api"
+import type { DeployEvent, Site } from "@/lib/api"
 import { ArchitectureTab } from "@/pages/site/architecture-tab"
 import { BackupsTab } from "@/pages/site/backups-tab"
 import { ConsoleTab } from "@/pages/site/console-tab"
@@ -101,6 +110,35 @@ export function SiteDetailPage() {
       }),
   })
 
+  // Pull the latest image(s) and recreate containers, streaming live progress.
+  const [updateEvents, setUpdateEvents] = useState<DeployEvent[]>([])
+  const streamRef = useRef<AbortController | null>(null)
+  const update = useMutation({
+    mutationFn: () => {
+      setUpdateEvents([])
+      streamRef.current?.abort()
+      const controller = new AbortController()
+      streamRef.current = controller
+      void api.streamDeployEvents(
+        domain,
+        (ev) => setUpdateEvents((prev) => [...prev, ev]),
+        controller.signal,
+      )
+      return api.updateSite(domain)
+    },
+    onSuccess: () => {
+      invalidate()
+      toastManager.add({ title: "Updated to latest", type: "success" })
+    },
+    onError: (err) =>
+      toastManager.add({
+        title: "Update failed",
+        description: err instanceof Error ? err.message : undefined,
+        type: "error",
+      }),
+    onSettled: () => streamRef.current?.abort(),
+  })
+
   const base = `/sites/${encodeURIComponent(domain)}`
   const splat = (params._splat ?? "").split("/")[0]
   const activeTab = TABS.some((t) => t.path === splat) ? splat : ""
@@ -153,6 +191,19 @@ export function SiteDetailPage() {
               <ExternalLinkIcon />
               Visit
             </Button>
+            <Button
+              variant="outline"
+              disabled={update.isPending}
+              onClick={() => update.mutate()}
+              title="Pull the latest image(s) and recreate containers"
+            >
+              {update.isPending ? (
+                <Spinner className="size-4" />
+              ) : (
+                <ArrowUpCircleIcon />
+              )}
+              Update
+            </Button>
             {running ? (
               <>
                 <Button
@@ -188,6 +239,21 @@ export function SiteDetailPage() {
           </>
         }
       />
+
+      {(update.isPending || updateEvents.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Updating to latest</CardTitle>
+            <CardDescription>
+              Pulling the newest image(s) and recreating containers. You can
+              leave this page — the update keeps running.
+            </CardDescription>
+          </CardHeader>
+          <CardPanel>
+            <DeployProgress events={updateEvents} />
+          </CardPanel>
+        </Card>
+      )}
 
       <Tabs
         value={activeTab}
