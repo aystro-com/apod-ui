@@ -211,6 +211,27 @@ export interface DriverDetail {
   builtin: boolean
 }
 
+export interface DriverParamPreview {
+  name: string
+  type: string
+  default: string
+  options?: string[]
+}
+
+export interface DriverPreview {
+  name: string
+  version: string
+  description: string
+  type: string
+  parameters: DriverParamPreview[]
+  services: string[]
+  compose: boolean
+  files: number
+  cron_jobs: number
+  setup_steps: number
+  warnings: string[]
+}
+
 export interface FirewallRule {
   num: number
   to: string
@@ -365,6 +386,8 @@ export class ApiClient {
   listDrivers = () => this.get<DriverInfo[]>("/api/v1/drivers")
   getDriver = (name: string) =>
     this.get<DriverDetail>(`/api/v1/drivers/${encodeURIComponent(name)}`)
+  validateDriver = (yaml: string) =>
+    this.post<DriverPreview>("/api/v1/drivers/validate", { yaml })
   saveDriver = (name: string, yaml: string) =>
     this.post<unknown>("/api/v1/drivers", { name, yaml })
   deleteDriver = (name: string) =>

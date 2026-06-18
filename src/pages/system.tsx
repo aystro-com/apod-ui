@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import type { DriverPreview } from "@/lib/api"
 import { useApi } from "@/lib/auth"
 import { useAction } from "@/lib/use-action"
 import { formatMB } from "@/lib/format"
@@ -62,6 +63,7 @@ export function SystemPage() {
   const [fwSourceProto, setFwSourceProto] = useState("")
   const [driverName, setDriverName] = useState("")
   const [driverYaml, setDriverYaml] = useState("")
+  const [driverPreview, setDriverPreview] = useState<DriverPreview | null>(null)
 
   const version = useQuery({ queryKey: ["version"], queryFn: api.version })
   const updateCheck = useQuery({
@@ -131,7 +133,13 @@ export function SystemPage() {
     onSuccess: () => {
       setDriverName("")
       setDriverYaml("")
+      setDriverPreview(null)
     },
+  })
+  const validateDriver = useAction({
+    fn: () => api.validateDriver(driverYaml),
+    successTitle: "YAML is valid",
+    onSuccess: (preview) => setDriverPreview(preview),
   })
   const removeDriver = useAction({
     fn: (n: string) => api.deleteDriver(n),
@@ -312,24 +320,98 @@ export function SystemPage() {
                   spellCheck={false}
                   className="min-h-32 font-mono text-xs"
                   value={driverYaml}
-                  onChange={(e) => setDriverYaml(e.target.value)}
+                  onChange={(e) => {
+                    setDriverYaml(e.target.value)
+                    setDriverPreview(null)
+                  }}
                 />
-                <Button
-                  type="submit"
-                  className="self-start"
-                  disabled={
-                    !driverName.trim() ||
-                    !driverYaml.trim() ||
-                    saveDriver.isPending
-                  }
-                >
-                  {saveDriver.isPending ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <PlusIcon />
-                  )}
-                  Save driver
-                </Button>
+
+                {driverPreview && (
+                  <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-3 text-xs">
+                    <p className="font-medium text-sm">
+                      Preview: {driverPreview.name}
+                      {driverPreview.version && ` v${driverPreview.version}`}
+                    </p>
+                    {driverPreview.description && (
+                      <p className="text-muted-foreground">
+                        {driverPreview.description}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="secondary">type: {driverPreview.type}</Badge>
+                      {driverPreview.type === "compose" ? (
+                        <Badge variant="outline">
+                          compose: {driverPreview.compose ? "yes" : "missing"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          services: {driverPreview.services.length}
+                        </Badge>
+                      )}
+                      <Badge variant="outline">
+                        params: {driverPreview.parameters.length}
+                      </Badge>
+                      <Badge variant="outline">files: {driverPreview.files}</Badge>
+                      <Badge variant="outline">
+                        cron: {driverPreview.cron_jobs}
+                      </Badge>
+                      <Badge variant="outline">
+                        setup: {driverPreview.setup_steps}
+                      </Badge>
+                    </div>
+                    {driverPreview.services.length > 0 && (
+                      <p className="text-muted-foreground">
+                        Services: {driverPreview.services.join(", ")}
+                      </p>
+                    )}
+                    {driverPreview.parameters.length > 0 && (
+                      <p className="text-muted-foreground">
+                        Parameters:{" "}
+                        {driverPreview.parameters
+                          .map((p) => p.name)
+                          .join(", ")}
+                      </p>
+                    )}
+                    {driverPreview.warnings.length > 0 && (
+                      <ul className="flex flex-col gap-1 text-destructive-foreground">
+                        {driverPreview.warnings.map((wn) => (
+                          <li key={wn}>⚠ {wn}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="self-start"
+                    disabled={!driverYaml.trim() || validateDriver.isPending}
+                    onClick={() => validateDriver.mutate()}
+                  >
+                    {validateDriver.isPending ? (
+                      <Spinner className="size-4" />
+                    ) : null}
+                    Validate / preview
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="self-start"
+                    disabled={
+                      !driverName.trim() ||
+                      !driverYaml.trim() ||
+                      saveDriver.isPending
+                    }
+                  >
+                    {saveDriver.isPending ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <PlusIcon />
+                    )}
+                    Save driver
+                  </Button>
+                </div>
               </form>
             </CardPanel>
           </Card>
