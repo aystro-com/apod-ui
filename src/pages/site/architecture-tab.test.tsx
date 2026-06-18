@@ -30,6 +30,13 @@ describe("ArchitectureTab", () => {
     expect(screen.getByText("2/2 up")).toBeInTheDocument()
   })
 
+  it("frames the site as one isolated unit", async () => {
+    setup()
+    renderWithProviders(<ArchitectureTab site={site} />)
+    expect(await screen.findByText("apod-site-example-com")).toBeInTheDocument()
+    expect(screen.getByText(/no other site can reach them/i)).toBeInTheDocument()
+  })
+
   it("scales a worker up", async () => {
     const { calls } = setup({
       "POST /api/v1/sites/example.com/processes/queue/scale": { status: "scaled" },

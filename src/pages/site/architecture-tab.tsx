@@ -8,6 +8,7 @@ import {
   PlusIcon,
   RotateCwIcon,
   ServerIcon,
+  ShieldCheckIcon,
 } from "lucide-react"
 import { ErrorState, LoadingRows } from "@/components/data-state"
 import { Badge } from "@/components/ui/badge"
@@ -192,15 +193,31 @@ export function ArchitectureTab({ site }: { site: Site }) {
           </CardDescription>
         </CardHeader>
         <CardPanel>
-          {/* Dotted-grid canvas, mirroring the cloud topology view. */}
-          <div
-            className="flex flex-wrap items-start gap-x-12 gap-y-6 rounded-lg border p-6"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
-              backgroundSize: "16px 16px",
-            }}
-          >
+          {/* The site boundary: every process below runs inside one private,
+              per-site network — a self-contained unit no other site can reach. */}
+          <div className="overflow-hidden rounded-xl border-2 border-dashed">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2">
+              <span className="flex items-center gap-2 font-medium text-sm">
+                <ServerIcon className="size-4 text-muted-foreground" />
+                {site.domain}
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                <ShieldCheckIcon className="size-3.5 text-emerald-600" />
+                Isolated network
+                <code className="rounded bg-background px-1 py-0.5 font-mono text-[10px]">
+                  apod-site-{site.domain.replaceAll(".", "-")}
+                </code>
+              </span>
+            </div>
+            {/* Dotted-grid canvas, mirroring the cloud topology view. */}
+            <div
+              className="flex flex-wrap items-start gap-x-12 gap-y-6 p-6"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
+                backgroundSize: "16px 16px",
+              }}
+            >
             <CanvasColumn title="App" icon={GlobeIcon}>
               {web.length === 0 ? (
                 <EmptyNode label="No web process" />
@@ -235,7 +252,13 @@ export function ArchitectureTab({ site }: { site: Site }) {
                 ))
               )}
             </CanvasColumn>
+            </div>
           </div>
+          <p className="mt-3 flex items-center gap-1.5 text-muted-foreground text-xs">
+            <ShieldCheckIcon className="size-3.5 text-emerald-600" />
+            These containers share one private network. No other site can reach
+            them.
+          </p>
         </CardPanel>
       </Card>
     </div>
