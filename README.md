@@ -13,12 +13,12 @@ A secure, easy-to-use web UI for [apod](https://github.com/aystro-com/apod) — 
 - **Environment** — env vars with masked values and reveal-on-demand
 - **Backups** — on-demand and scheduled backups, restore/delete, S3/R2/SFTP storage backends
 - **Cron** — per-site cron jobs running inside the container
-- **Security** — IP blocking, proxy rules, FTP/SFTP accounts
+- **Security** — per-site IP access (allow/block with allowlist mode), proxy rules, FTP/SFTP accounts
 - **Uptime** — HTTP monitoring with webhook alerts and check history
 - **Console** — token-based web terminal scoped to the site's container
 - **Logs** — container stdout/stderr and per-site/global activity logs
 - **Users** (admin) — multi-tenant user management with one-time API key display
-- **System** (admin) — version/self-update, drivers, UFW firewall, SSH keys, disk usage
+- **System** (admin) — version/self-update, custom drivers (paste + validate/preview YAML), UFW firewall (port rules + source whitelists + numbered rule management), SSH keys, disk usage
 - Dark mode, responsive layout, accessible components (Base UI)
 
 ## Quick start
