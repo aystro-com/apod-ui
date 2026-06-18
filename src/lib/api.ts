@@ -274,6 +274,15 @@ export interface TerminalToken {
   expires_at: string
 }
 
+// Site credentials returned by GET /sites/{domain}/info. `secrets` is a nested
+// map of generated credentials (DB creds, dashboard password, …).
+export interface SiteInfo {
+  domain: string
+  driver: string
+  url: string
+  secrets?: Record<string, string>
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -377,7 +386,7 @@ export class ApiClient {
   listSites = () => this.get<Site[]>("/api/v1/sites")
   getSite = (domain: string) => this.get<Site>(this.sitePath(domain))
   getSiteInfo = (domain: string) =>
-    this.get<Record<string, string>>(this.sitePath(domain, "/info"))
+    this.get<SiteInfo>(this.sitePath(domain, "/info"))
   createSite = (body: {
     domain: string
     driver?: string

@@ -130,10 +130,16 @@ export function OverviewTab({ site }: { site: Site }) {
               <code className="font-mono text-sm">{site.branch}</code>
             </div>
           )}
-          {info.data && Object.keys(info.data).length > 0 && (
+          {info.data?.url && (
+            <div className="flex items-center justify-between gap-4 py-2">
+              <span className="font-medium text-muted-foreground text-sm">url</span>
+              <code className="truncate font-mono text-sm">{info.data.url}</code>
+            </div>
+          )}
+          {info.data?.secrets && Object.keys(info.data.secrets).length > 0 && (
             <>
               <Separator className="my-2" />
-              {Object.entries(info.data).map(([k, v]) => (
+              {Object.entries(info.data.secrets).map(([k, v]) => (
                 <InfoRow key={k} name={k} value={String(v)} />
               ))}
             </>

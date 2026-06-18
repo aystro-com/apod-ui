@@ -16,8 +16,13 @@ describe("OverviewTab", () => {
         memory_percent: 39,
       },
       "GET /api/v1/sites/example.com/info": {
-        db_name: "appdb",
-        db_password: "hunter2",
+        domain: "example.com",
+        driver: "laravel",
+        url: "https://example.com",
+        secrets: {
+          db_name: "appdb",
+          db_password: "hunter2",
+        },
       },
     })
     renderWithProviders(<OverviewTab site={makeSite()} />)
