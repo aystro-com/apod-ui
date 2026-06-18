@@ -33,6 +33,44 @@ describe("SiteCreatePage", () => {
     expect(calls.some((c) => c.method === "POST")).toBe(false)
   })
 
+  it("requires compose content when the Compose file tab is selected", async () => {
+    const { calls } = setup()
+    renderWithProviders(<SiteCreatePage />)
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/domain/i), "new.example.com")
+    await user.click(screen.getByRole("tab", { name: /compose file/i }))
+    await user.click(screen.getByRole("button", { name: /create site/i }))
+    expect(await screen.findByText(/paste a docker-compose/i)).toBeInTheDocument()
+    expect(calls.some((c) => c.method === "POST")).toBe(false)
+  })
+
+  it("creates a site from a pasted docker-compose.yml (no driver)", async () => {
+    const { calls } = setup({
+      "POST /api/v1/sites": makeSite({ domain: "app.example.com" }),
+    })
+    renderWithProviders(<SiteCreatePage />, { route: "/sites/new" })
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText(/domain/i), "app.example.com")
+
+    await user.click(screen.getByRole("tab", { name: /compose file/i }))
+    const compose = "services:\n  web:\n    image: nginx\n    ports:\n      - 8080:80\n"
+    await user.click(screen.getByLabelText(/docker-compose\.yml/i))
+    await user.paste(compose)
+
+    await user.click(screen.getByRole("button", { name: /create site/i }))
+    await waitFor(() => {
+      const post = calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/sites",
+      )
+      expect(post?.body).toMatchObject({
+        domain: "app.example.com",
+        compose_file: compose,
+      })
+      // No driver is sent in compose mode.
+      expect((post?.body as Record<string, unknown>).driver).toBeUndefined()
+    })
+  })
+
   it("creates a site with the chosen driver and limits", async () => {
     const { calls } = setup({
       "POST /api/v1/sites": makeSite({ domain: "new.example.com" }),

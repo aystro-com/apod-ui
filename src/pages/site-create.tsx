@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { toastManager } from "@/components/ui/toast"
 import { useApi } from "@/lib/auth"
 
@@ -47,7 +49,9 @@ export function SiteCreatePage() {
   })
 
   const [domain, setDomain] = useState("")
+  const [source, setSource] = useState<"driver" | "compose">("driver")
   const [driver, setDriver] = useState<string | null>(null)
+  const [composeFile, setComposeFile] = useState("")
   const [ram, setRam] = useState("512M")
   const [cpu, setCpu] = useState("1")
   const [storage, setStorage] = useState("")
@@ -60,7 +64,8 @@ export function SiteCreatePage() {
     mutationFn: () =>
       api.createSite({
         domain: domain.trim().toLowerCase(),
-        driver: driver!,
+        driver: source === "driver" ? driver! : undefined,
+        compose_file: source === "compose" ? composeFile : undefined,
         ram,
         cpu,
         storage: storage || undefined,
@@ -89,8 +94,12 @@ export function SiteCreatePage() {
       )
       return
     }
-    if (!driver) {
+    if (source === "driver" && !driver) {
       setValidationError("Choose a driver for the application stack.")
+      return
+    }
+    if (source === "compose" && !composeFile.trim()) {
+      setValidationError("Paste a docker-compose.yml to run.")
       return
     }
     create.mutate()
@@ -119,37 +128,63 @@ export function SiteCreatePage() {
             </CardDescription>
           </CardHeader>
           <CardPanel className="flex flex-col gap-5">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="domain">Domain</Label>
-                <Input
-                  id="domain"
-                  placeholder="example.com"
-                  autoComplete="off"
-                  spellCheck={false}
-                  required
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="driver">Driver</Label>
-                <Select
-                  value={driver}
-                  onValueChange={(v) => setDriver(v as string | null)}
-                >
-                  <SelectTrigger id="driver" className="w-full">
-                    <SelectValue placeholder={drivers.isPending ? "Loading…" : "Choose a stack"} />
-                  </SelectTrigger>
-                  <SelectPopup>
-                    {(drivers.data ?? []).map((d) => (
-                      <SelectItem key={d.name} value={d.name}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectPopup>
-                </Select>
-              </div>
+            <div className="flex max-w-xs flex-col gap-2">
+              <Label htmlFor="domain">Domain</Label>
+              <Input
+                id="domain"
+                placeholder="example.com"
+                autoComplete="off"
+                spellCheck={false}
+                required
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>Application source</Label>
+              <Tabs
+                value={source}
+                onValueChange={(v) => setSource(v as "driver" | "compose")}
+              >
+                <TabsList className="w-full *:flex-1">
+                  <TabsTab value="driver">Driver</TabsTab>
+                  <TabsTab value="compose">Compose file</TabsTab>
+                </TabsList>
+                <TabsPanel value="driver" className="pt-3">
+                  <Select
+                    value={driver}
+                    onValueChange={(v) => setDriver(v as string | null)}
+                  >
+                    <SelectTrigger id="driver" aria-label="Driver" className="w-full">
+                      <SelectValue placeholder={drivers.isPending ? "Loading…" : "Choose a stack"} />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {(drivers.data ?? []).map((d) => (
+                        <SelectItem key={d.name} value={d.name}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                </TabsPanel>
+                <TabsPanel value="compose" className="flex flex-col gap-2 pt-3">
+                  <Textarea
+                    id="compose-file"
+                    aria-label="docker-compose.yml"
+                    placeholder={"# Paste a docker-compose.yml — apod runs it as-is\nservices:\n  app:\n    image: lscr.io/linuxserver/sonarr\n    ports:\n      - 8989:8989"}
+                    spellCheck={false}
+                    rows={10}
+                    className="font-mono text-xs"
+                    value={composeFile}
+                    onChange={(e) => setComposeFile(e.target.value)}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    apod auto-detects the web service and port — no driver
+                    needed.
+                  </p>
+                </TabsPanel>
+              </Tabs>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-3">

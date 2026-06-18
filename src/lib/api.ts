@@ -370,7 +370,8 @@ export class ApiClient {
     this.get<Record<string, string>>(this.sitePath(domain, "/info"))
   createSite = (body: {
     domain: string
-    driver: string
+    driver?: string
+    compose_file?: string
     ram?: string
     cpu?: string
     storage?: string
