@@ -13,6 +13,10 @@ function setup(extra: Record<string, unknown> = {}) {
       { name: "node", description: "Node.js + PostgreSQL" },
     ],
     "GET /api/v1/firewall": { enabled: true, rules: ["80/tcp ALLOW", "443/tcp ALLOW"] },
+    "GET /api/v1/firewall/rules": [
+      { num: 1, to: "80/tcp", action: "ALLOW", from: "Anywhere" },
+      { num: 2, to: "443/tcp", action: "ALLOW", from: "Anywhere" },
+    ],
     "GET /api/v1/ssh-keys": [
       {
         id: 1,
@@ -43,7 +47,7 @@ describe("SystemPage", () => {
     })
     renderWithProviders(<SystemPage />)
     const user = userEvent.setup()
-    const input = await screen.findByPlaceholderText(/port/i)
+    const input = await screen.findByPlaceholderText("port, e.g. 8080")
     await user.type(input, "8080")
     await user.click(screen.getByRole("button", { name: /^allow/i }))
     await waitFor(() => {
@@ -61,11 +65,69 @@ describe("SystemPage", () => {
     const { calls } = setup()
     renderWithProviders(<SystemPage />)
     const user = userEvent.setup()
-    const input = await screen.findByPlaceholderText(/port/i)
+    const input = await screen.findByPlaceholderText("port, e.g. 8080")
     await user.type(input, "99999")
     await user.click(screen.getByRole("button", { name: /^allow/i }))
     expect(await screen.findByText(/valid port/i)).toBeInTheDocument()
     expect(calls.some((c) => c.path === "/api/v1/firewall/allow")).toBe(false)
+  })
+
+  it("whitelists a source IP", async () => {
+    const { calls } = setup({
+      "POST /api/v1/firewall/allow-from": { status: "allowed" },
+    })
+    renderWithProviders(<SystemPage />)
+    const user = userEvent.setup()
+    await user.type(
+      await screen.findByPlaceholderText(/source IP/i),
+      "203.0.113.5",
+    )
+    await user.click(screen.getByRole("button", { name: /whitelist/i }))
+    await waitFor(() => {
+      const call = calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/firewall/allow-from",
+      )
+      expect(call?.body).toEqual({ source: "203.0.113.5" })
+    })
+  })
+
+  it("deletes a firewall rule by number", async () => {
+    const { calls } = setup({
+      "POST /api/v1/firewall/delete": { status: "deleted" },
+    })
+    renderWithProviders(<SystemPage />)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole("button", { name: /delete rule 2/i }))
+    await user.click(await screen.findByRole("button", { name: /^delete$/i }))
+    await waitFor(() => {
+      const call = calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/firewall/delete",
+      )
+      expect(call?.body).toEqual({ num: 2 })
+    })
+  })
+
+  it("saves a custom driver", async () => {
+    const { calls } = setup({
+      "POST /api/v1/drivers": { status: "saved" },
+    })
+    renderWithProviders(<SystemPage />)
+    const user = userEvent.setup()
+    await user.type(
+      await screen.findByPlaceholderText(/driver name/i),
+      "my-stack",
+    )
+    await user.type(
+      screen.getByPlaceholderText(/name: my-stack/i),
+      "name: my-stack",
+    )
+    await user.click(screen.getByRole("button", { name: /save driver/i }))
+    await waitFor(() => {
+      const call = calls.find(
+        (c) => c.method === "POST" && c.path === "/api/v1/drivers",
+      )
+      expect(call?.body).toEqual({ name: "my-stack", yaml: "name: my-stack" })
+    })
   })
 
   it("adds an SSH key", async () => {

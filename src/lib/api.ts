@@ -205,6 +205,19 @@ export interface DriverInfo {
   description?: string
 }
 
+export interface DriverDetail {
+  name: string
+  yaml: string
+  builtin: boolean
+}
+
+export interface FirewallRule {
+  num: number
+  to: string
+  action: string
+  from: string
+}
+
 export interface VersionInfo {
   version: string
   db_version: number
@@ -350,6 +363,12 @@ export class ApiClient {
 
   // Drivers
   listDrivers = () => this.get<DriverInfo[]>("/api/v1/drivers")
+  getDriver = (name: string) =>
+    this.get<DriverDetail>(`/api/v1/drivers/${encodeURIComponent(name)}`)
+  saveDriver = (name: string, yaml: string) =>
+    this.post<unknown>("/api/v1/drivers", { name, yaml })
+  deleteDriver = (name: string) =>
+    this.delete<unknown>(`/api/v1/drivers/${encodeURIComponent(name)}`)
 
   // Domains
   listDomains = (domain: string) => this.get<string[]>(this.sitePath(domain, "/domains"))
@@ -543,9 +562,14 @@ export class ApiClient {
 
   // Firewall (admin)
   firewallStatus = () => this.get<FirewallStatus>("/api/v1/firewall")
+  firewallRules = () => this.get<FirewallRule[]>("/api/v1/firewall/rules")
   firewallEnable = () => this.post<unknown>("/api/v1/firewall/enable")
   firewallAllow = (port: string) => this.post<unknown>("/api/v1/firewall/allow", { port })
+  firewallAllowFrom = (body: { source: string; port?: string; proto?: string }) =>
+    this.post<unknown>("/api/v1/firewall/allow-from", body)
   firewallDeny = (port: string) => this.post<unknown>("/api/v1/firewall/deny", { port })
+  firewallDelete = (num: number) =>
+    this.post<unknown>("/api/v1/firewall/delete", { num })
 
   // SSH keys (admin)
   addSSHKey = (name: string, publicKey: string) =>

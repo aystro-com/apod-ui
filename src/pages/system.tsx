@@ -44,12 +44,24 @@ function isValidPort(value: string): boolean {
   return /^\d+(\/(tcp|udp))?$/.test(value) && Number.isInteger(n) && n >= 1 && n <= 65535
 }
 
+// Built-in drivers ship with apod and cannot be deleted (the server enforces
+// this too); used here only to decide whether to show a delete button.
+const BUILTIN_DRIVERS = new Set([
+  "php", "laravel", "node", "wordpress", "odoo", "unifi",
+  "paymenter", "supabase", "static", "whmcs", "apod-ui",
+])
+
 export function SystemPage() {
   const { api } = useApi()
   const [port, setPort] = useState("")
   const [portError, setPortError] = useState<string | null>(null)
   const [keyName, setKeyName] = useState("")
   const [publicKey, setPublicKey] = useState("")
+  const [fwSource, setFwSource] = useState("")
+  const [fwSourcePort, setFwSourcePort] = useState("")
+  const [fwSourceProto, setFwSourceProto] = useState("")
+  const [driverName, setDriverName] = useState("")
+  const [driverYaml, setDriverYaml] = useState("")
 
   const version = useQuery({ queryKey: ["version"], queryFn: api.version })
   const updateCheck = useQuery({
@@ -58,6 +70,10 @@ export function SystemPage() {
   })
   const drivers = useQuery({ queryKey: ["drivers"], queryFn: api.listDrivers })
   const firewall = useQuery({ queryKey: ["firewall"], queryFn: api.firewallStatus })
+  const firewallRules = useQuery({
+    queryKey: ["firewall-rules"],
+    queryFn: api.firewallRules,
+  })
   const sshKeys = useQuery({ queryKey: ["ssh-keys"], queryFn: api.listSSHKeys })
   const diskUsage = useQuery({ queryKey: ["disk-usage"], queryFn: api.diskUsage })
 
@@ -73,20 +89,54 @@ export function SystemPage() {
   })
   const allowPort = useAction({
     fn: (p: string) => api.firewallAllow(p),
-    invalidates: [["firewall"]],
+    invalidates: [["firewall"], ["firewall-rules"]],
     successTitle: "Port allowed",
     onSuccess: () => setPort(""),
   })
   const denyPort = useAction({
     fn: (p: string) => api.firewallDeny(p),
-    invalidates: [["firewall"]],
+    invalidates: [["firewall"], ["firewall-rules"]],
     successTitle: "Port denied",
     onSuccess: () => setPort(""),
   })
   const enableFirewall = useAction({
     fn: api.firewallEnable,
-    invalidates: [["firewall"]],
+    invalidates: [["firewall"], ["firewall-rules"]],
     successTitle: "Firewall enabled",
+  })
+  const allowFrom = useAction({
+    fn: () =>
+      api.firewallAllowFrom({
+        source: fwSource.trim(),
+        port: fwSourcePort.trim() || undefined,
+        proto: fwSourceProto.trim() || undefined,
+      }),
+    invalidates: [["firewall"], ["firewall-rules"]],
+    successTitle: "Source whitelisted",
+    onSuccess: () => {
+      setFwSource("")
+      setFwSourcePort("")
+      setFwSourceProto("")
+    },
+  })
+  const deleteRule = useAction({
+    fn: (num: number) => api.firewallDelete(num),
+    invalidates: [["firewall"], ["firewall-rules"]],
+    successTitle: "Rule deleted",
+  })
+  const saveDriver = useAction({
+    fn: () => api.saveDriver(driverName.trim(), driverYaml),
+    invalidates: [["drivers"]],
+    successTitle: "Driver saved",
+    onSuccess: () => {
+      setDriverName("")
+      setDriverYaml("")
+    },
+  })
+  const removeDriver = useAction({
+    fn: (n: string) => api.deleteDriver(n),
+    invalidates: [["drivers"]],
+    successTitle: "Driver deleted",
   })
   const addKey = useAction({
     fn: () => api.addSSHKey(keyName.trim(), publicKey.trim()),
@@ -199,21 +249,88 @@ export function SystemPage() {
                 Application stacks available for new sites.
               </CardDescription>
             </CardHeader>
-            <CardPanel>
+            <CardPanel className="flex flex-col gap-4">
               {drivers.isPending && <LoadingRows rows={3} />}
               {drivers.isError && <ErrorState error={drivers.error} />}
               {drivers.data && (
                 <ul className="flex flex-col gap-2">
                   {drivers.data.map((d) => (
-                    <li key={d.name} className="flex items-baseline gap-2 text-sm">
+                    <li
+                      key={d.name}
+                      className="flex items-baseline gap-2 text-sm"
+                    >
                       <Badge variant="secondary">{d.name}</Badge>
-                      <span className="text-muted-foreground">
+                      <span className="flex-1 text-muted-foreground">
                         {d.description || ""}
                       </span>
+                      {!BUILTIN_DRIVERS.has(d.name) && (
+                        <ConfirmDialog
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Delete driver ${d.name}`}
+                            >
+                              <Trash2Icon />
+                            </Button>
+                          }
+                          title={`Delete driver ${d.name}`}
+                          description="Existing sites using this driver keep running, but you won't be able to create new sites with it."
+                          confirmLabel="Delete"
+                          onConfirm={() => removeDriver.mutateAsync(d.name)}
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
               )}
+
+              <form
+                className="flex flex-col gap-2 border-t pt-4"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (driverName.trim() && driverYaml.trim()) saveDriver.mutate()
+                }}
+              >
+                <p className="font-medium text-sm">Add a custom driver</p>
+                <p className="text-muted-foreground text-xs">
+                  Paste a driver definition. The <code>name:</code> field must
+                  match the name below. Built-in drivers can be overwritten by
+                  reusing their name.
+                </p>
+                <Input
+                  placeholder="driver name, e.g. my-stack"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="max-w-56"
+                  value={driverName}
+                  onChange={(e) => setDriverName(e.target.value)}
+                />
+                <Textarea
+                  placeholder={"name: my-stack\nversion: \"1.0\"\ndescription: …"}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="min-h-32 font-mono text-xs"
+                  value={driverYaml}
+                  onChange={(e) => setDriverYaml(e.target.value)}
+                />
+                <Button
+                  type="submit"
+                  className="self-start"
+                  disabled={
+                    !driverName.trim() ||
+                    !driverYaml.trim() ||
+                    saveDriver.isPending
+                  }
+                >
+                  {saveDriver.isPending ? (
+                    <Spinner className="size-4" />
+                  ) : (
+                    <PlusIcon />
+                  )}
+                  Save driver
+                </Button>
+              </form>
             </CardPanel>
           </Card>
 
@@ -318,10 +435,115 @@ export function SystemPage() {
                       Deny
                     </Button>
                   </form>
-                  {(firewall.data.rules ?? []).length > 0 && (
-                    <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
-                      {(firewall.data.rules ?? []).join("\n")}
-                    </pre>
+                  <form
+                    className="flex flex-col gap-2 border-t pt-4"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (fwSource.trim()) allowFrom.mutate()
+                    }}
+                  >
+                    <p className="font-medium text-sm">Whitelist a source</p>
+                    <p className="text-muted-foreground text-xs">
+                      Allow traffic from a specific IP or CIDR, optionally
+                      limited to one port.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        placeholder="source IP / CIDR"
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-44"
+                        value={fwSource}
+                        onChange={(e) => setFwSource(e.target.value)}
+                      />
+                      <Input
+                        placeholder="port (optional)"
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-32"
+                        value={fwSourcePort}
+                        onChange={(e) => setFwSourcePort(e.target.value)}
+                      />
+                      <select
+                        className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                        value={fwSourceProto}
+                        onChange={(e) => setFwSourceProto(e.target.value)}
+                        aria-label="protocol"
+                      >
+                        <option value="">any</option>
+                        <option value="tcp">tcp</option>
+                        <option value="udp">udp</option>
+                      </select>
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        disabled={!fwSource.trim() || allowFrom.isPending}
+                      >
+                        {allowFrom.isPending && <Spinner className="size-4" />}
+                        Whitelist
+                      </Button>
+                    </div>
+                  </form>
+
+                  {firewallRules.data && firewallRules.data.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">#</TableHead>
+                          <TableHead>To</TableHead>
+                          <TableHead>Action</TableHead>
+                          <TableHead>From</TableHead>
+                          <TableHead className="w-16 text-right">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {firewallRules.data.map((rule) => (
+                          <TableRow key={rule.num}>
+                            <TableCell className="tabular-nums">
+                              {rule.num}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {rule.to}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  rule.action === "ALLOW"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {rule.action}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {rule.from}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <ConfirmDialog
+                                trigger={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Delete rule ${rule.num}`}
+                                  >
+                                    <Trash2Icon />
+                                  </Button>
+                                }
+                                title={`Delete firewall rule ${rule.num}`}
+                                description={`${rule.action} ${rule.to} from ${rule.from} will be removed.`}
+                                confirmLabel="Delete"
+                                onConfirm={() =>
+                                  deleteRule.mutateAsync(rule.num)
+                                }
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
                 </>
               )}
