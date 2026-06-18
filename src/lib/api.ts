@@ -294,6 +294,14 @@ export interface ApiClientOptions {
   onUnauthorized?: () => void
 }
 
+export interface DeployEvent {
+  step: string
+  status: "running" | "done" | "error"
+  detail?: string
+  percent: number
+  time: string
+}
+
 export class ApiClient {
   private baseUrl: string
   private apiKey: string
@@ -379,6 +387,62 @@ export class ApiClient {
     branch?: string
     owner?: string
   }) => this.post<Site>("/api/v1/sites", body)
+
+  /**
+   * Streams a site's live deployment progress (Server-Sent Events) via fetch —
+   * EventSource can't send the Bearer header, so we read the body ourselves.
+   * Resolves when the stream ends (terminal event, disconnect, or abort).
+   * Retries briefly on 404 to cover the gap between firing createSite and the
+   * site record existing server-side.
+   */
+  streamDeployEvents = async (
+    domain: string,
+    onEvent: (ev: DeployEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> => {
+    const url = this.baseUrl + this.sitePath(domain, "/deploy/events")
+    let res: Response | undefined
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (signal?.aborted) return
+      try {
+        res = await fetch(url, {
+          headers: { Authorization: `Bearer ${this.apiKey}`, Accept: "text/event-stream" },
+          signal,
+        })
+      } catch {
+        return // aborted or network gone — nothing to stream
+      }
+      if (res.status !== 404) break
+      await new Promise((r) => setTimeout(r, 400)) // record not created yet
+    }
+    if (!res || !res.ok || !res.body) return
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ""
+    try {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const frames = buf.split("\n\n")
+        buf = frames.pop() ?? ""
+        for (const frame of frames) {
+          const data = frame
+            .split("\n")
+            .find((l) => l.startsWith("data: "))
+          if (!data) continue
+          try {
+            onEvent(JSON.parse(data.slice(6)) as DeployEvent)
+          } catch {
+            /* ignore malformed frame */
+          }
+        }
+      }
+    } catch {
+      /* aborted mid-stream */
+    }
+  }
   startSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/start"))
   stopSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/stop"))
   restartSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/restart"))

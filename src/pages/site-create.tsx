@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeftIcon, RocketIcon } from "lucide-react"
+import { DeployProgress } from "@/components/deploy-progress"
+import type { DeployEvent } from "@/lib/api"
 import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -59,11 +61,24 @@ export function SiteCreatePage() {
   const [branch, setBranch] = useState("")
   const [owner, setOwner] = useState("")
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [deployEvents, setDeployEvents] = useState<DeployEvent[]>([])
+  const streamRef = useRef<AbortController | null>(null)
 
   const create = useMutation({
-    mutationFn: () =>
-      api.createSite({
-        domain: domain.trim().toLowerCase(),
+    mutationFn: () => {
+      const d = domain.trim().toLowerCase()
+      // Stream live deploy progress alongside the (blocking) create call.
+      setDeployEvents([])
+      streamRef.current?.abort()
+      const controller = new AbortController()
+      streamRef.current = controller
+      void api.streamDeployEvents(
+        d,
+        (ev) => setDeployEvents((prev) => [...prev, ev]),
+        controller.signal,
+      )
+      return api.createSite({
+        domain: d,
         driver: source === "driver" ? driver! : undefined,
         compose_file: source === "compose" ? composeFile : undefined,
         ram,
@@ -72,7 +87,8 @@ export function SiteCreatePage() {
         repo: repo.trim() || undefined,
         branch: branch.trim() || undefined,
         owner: owner || undefined,
-      }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sites"] })
       toastManager.add({
@@ -80,8 +96,14 @@ export function SiteCreatePage() {
         description: `${domain.trim().toLowerCase()} is being provisioned.`,
         type: "success",
       })
-      navigate({ to: "/sites/$domain", params: { domain: domain.trim().toLowerCase() } })
+      // Let the final "Ready" step render briefly before navigating away.
+      const d = domain.trim().toLowerCase()
+      setTimeout(() => {
+        streamRef.current?.abort()
+        navigate({ to: "/sites/$domain", params: { domain: d } })
+      }, 1200)
     },
+    onError: () => streamRef.current?.abort(),
   })
 
   function handleSubmit(e: FormEvent) {
@@ -118,6 +140,21 @@ export function SiteCreatePage() {
         }
       />
 
+      {create.isPending || create.isSuccess ? (
+        <Card className="max-w-2xl">
+          <CardHeader>
+            <CardTitle>Deploying {domain.trim().toLowerCase()}</CardTitle>
+            <CardDescription>
+              Provisioning the container stack — this can take a moment while
+              images are pulled. You can safely leave this page; the deployment
+              continues in the background.
+            </CardDescription>
+          </CardHeader>
+          <CardPanel>
+            <DeployProgress events={deployEvents} />
+          </CardPanel>
+        </Card>
+      ) : (
       <form onSubmit={handleSubmit} className="max-w-2xl">
         <Card>
           <CardHeader>
@@ -314,6 +351,7 @@ export function SiteCreatePage() {
           </CardFooter>
         </Card>
       </form>
+      )}
     </>
   )
 }
