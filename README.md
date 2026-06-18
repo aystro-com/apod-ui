@@ -8,10 +8,11 @@ A secure, easy-to-use web UI for [apod](https://github.com/aystro-com/apod) — 
 - **First-run setup** — a fresh instance lands on an admin-creation screen
 - **Dashboard** — live server stats (CPU, memory, disk) and per-site resource usage
 - **Sites** — create, start/stop/restart, clone, transfer, and destroy sites with type-to-confirm guard rails
+- **Architecture** — a topology canvas of the site's processes (web / workers / scheduler / backing services); scale workers up and down and restart processes inline
 - **Deploys** — trigger git deploys, roll back, view history, and manage push-to-deploy webhooks
 - **Domains** — manage domain aliases with automatic SSL
 - **Environment** — env vars with masked values and reveal-on-demand
-- **Backups** — on-demand and scheduled backups, restore/delete, S3/R2/SFTP storage backends
+- **Backups** — on-demand and scheduled backups, restore/delete, **provision a new site from a backup** (staging-from-prod), S3/R2/SFTP storage backends
 - **Cron** — per-site cron jobs running inside the container
 - **Security** — per-site IP access (allow/block with allowlist mode), proxy rules, FTP/SFTP accounts
 - **Uptime** — HTTP monitoring with webhook alerts and check history
