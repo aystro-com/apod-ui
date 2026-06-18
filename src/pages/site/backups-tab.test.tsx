@@ -34,6 +34,38 @@ describe("BackupsTab", () => {
     expect(screen.getByText("completed")).toBeInTheDocument()
   })
 
+  it("creates a new site from a backup", async () => {
+    const { calls } = setup({
+      "POST /api/v1/sites/example.com/backups/new-site": { status: "created" },
+    })
+    renderWithProviders(<BackupsTab site={site} />)
+    const user = userEvent.setup()
+    await user.click(
+      await screen.findByRole("button", {
+        name: /create a new site from backup #7/i,
+      }),
+    )
+    await user.type(
+      await screen.findByLabelText(/new domain/i),
+      "staging.example.com",
+    )
+    await user.click(screen.getByRole("button", { name: /^create site$/i }))
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) =>
+            c.path === "/api/v1/sites/example.com/backups/new-site" &&
+            JSON.stringify(c.body) ===
+              JSON.stringify({
+                backup_id: 7,
+                new_domain: "staging.example.com",
+                owner: "",
+              }),
+        ),
+      ).toBe(true)
+    })
+  })
+
   it("creates a backup", async () => {
     const { calls } = setup({
       "POST /api/v1/sites/example.com/backups": { backup_id: 8 },

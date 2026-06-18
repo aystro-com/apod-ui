@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useApi } from "@/lib/auth"
 import type { Site } from "@/lib/api"
+import { ArchitectureTab } from "@/pages/site/architecture-tab"
 import { BackupsTab } from "@/pages/site/backups-tab"
 import { ConsoleTab } from "@/pages/site/console-tab"
 import { CronTab } from "@/pages/site/cron-tab"
@@ -32,6 +33,7 @@ import { UptimeTab } from "@/pages/site/uptime-tab"
 
 const TABS = [
   { path: "", label: "Overview" },
+  { path: "architecture", label: "Architecture" },
   { path: "deploys", label: "Deploys" },
   { path: "domains", label: "Domains" },
   { path: "env", label: "Environment" },
@@ -46,6 +48,7 @@ const TABS = [
 
 const TAB_COMPONENTS: Record<string, ComponentType<{ site: Site }>> = {
   "": OverviewTab,
+  architecture: ArchitectureTab,
   deploys: DeploysTab,
   domains: DomainsTab,
   env: EnvTab,

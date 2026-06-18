@@ -62,6 +62,16 @@ export interface Backup {
   created_at: string
 }
 
+export interface ProcessInfo {
+  service: string
+  role: string
+  image: string
+  command: string
+  replicas: number
+  running: number
+  scalable: boolean
+}
+
 export interface BackupSchedule {
   id: number
   site_domain: string
@@ -437,8 +447,27 @@ export class ApiClient {
   listBackups = (domain: string) => this.get<Backup[]>(this.sitePath(domain, "/backups"))
   restoreBackup = (domain: string, backupId: number) =>
     this.post<unknown>(this.sitePath(domain, "/backups/restore"), { backup_id: backupId })
+  newSiteFromBackup = (domain: string, backupId: number, newDomain: string, owner = "") =>
+    this.post<unknown>(this.sitePath(domain, "/backups/new-site"), {
+      backup_id: backupId,
+      new_domain: newDomain,
+      owner,
+    })
   deleteBackup = (domain: string, backupId: number) =>
     this.delete<unknown>(this.sitePath(domain, "/backups"), { backup_id: backupId })
+
+  // Processes (web / workers / scheduler)
+  listProcesses = (domain: string) =>
+    this.get<ProcessInfo[]>(this.sitePath(domain, "/processes"))
+  scaleProcess = (domain: string, service: string, replicas: number) =>
+    this.post<unknown>(
+      this.sitePath(domain, `/processes/${encodeURIComponent(service)}/scale`),
+      { replicas },
+    )
+  restartProcess = (domain: string, service: string) =>
+    this.post<unknown>(
+      this.sitePath(domain, `/processes/${encodeURIComponent(service)}/restart`),
+    )
 
   // Backup schedules
   addBackupSchedule = (domain: string, every: string, keep: number, storage?: string) =>

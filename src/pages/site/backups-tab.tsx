@@ -1,6 +1,13 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { ArchiveIcon, CalendarClockIcon, PlusIcon, Trash2Icon, UndoIcon } from "lucide-react"
+import {
+  ArchiveIcon,
+  CalendarClockIcon,
+  CopyPlusIcon,
+  PlusIcon,
+  Trash2Icon,
+  UndoIcon,
+} from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState, ErrorState, LoadingRows } from "@/components/data-state"
 import { StatusBadge } from "@/components/status-badge"
@@ -12,6 +19,19 @@ import {
   CardPanel,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectItem,
@@ -159,6 +179,10 @@ export function BackupsTab({ site }: { site: Site }) {
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="flex justify-end gap-1">
+                          <NewSiteFromBackupDialog
+                            sourceDomain={site.domain}
+                            backupId={b.id}
+                          />
                           <ConfirmDialog
                             trigger={
                               <Button
@@ -316,5 +340,99 @@ export function BackupsTab({ site }: { site: Site }) {
         </CardPanel>
       </Card>
     </div>
+  )
+}
+
+const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i
+
+/** Provisions a brand-new site from a backup, leaving the source untouched. */
+function NewSiteFromBackupDialog({
+  sourceDomain,
+  backupId,
+}: {
+  sourceDomain: string
+  backupId: number
+}) {
+  const { api } = useApi()
+  const [open, setOpen] = useState(false)
+  const [newDomain, setNewDomain] = useState("")
+  const [error, setError] = useState<string | null>(null)
+
+  const create = useAction({
+    fn: () => api.newSiteFromBackup(sourceDomain, backupId, newDomain.trim()),
+    invalidates: [["sites"]],
+    successTitle: "Site created from backup",
+    onSuccess: () => {
+      setOpen(false)
+      setNewDomain("")
+      setError(null)
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    const d = newDomain.trim()
+    if (!DOMAIN_RE.test(d)) {
+      setError("Enter a valid domain, e.g. staging.example.com.")
+      return
+    }
+    if (d === sourceDomain) {
+      setError("The new domain must differ from the source site.")
+      return
+    }
+    create.mutate()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Create a new site from backup #${backupId}`}
+          />
+        }
+      >
+        <CopyPlusIcon />
+      </DialogTrigger>
+      <DialogPopup>
+        <form onSubmit={handleSubmit} className="contents">
+          <DialogHeader>
+            <DialogTitle>New site from backup #{backupId}</DialogTitle>
+            <DialogDescription>
+              Provisions a new site with this backup's files, databases, and
+              volumes. {sourceDomain} is left untouched — ideal for spinning up
+              staging from production.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel className="flex flex-col gap-2">
+            <Label htmlFor="new-site-domain">New domain</Label>
+            <Input
+              id="new-site-domain"
+              placeholder="staging.example.com"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+              value={newDomain}
+              onChange={(e) => setNewDomain(e.target.value)}
+            />
+            {error && (
+              <p className="text-destructive-foreground text-xs">{error}</p>
+            )}
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" type="button" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={!newDomain.trim() || create.isPending}>
+              {create.isPending ? <Spinner className="size-4" /> : <CopyPlusIcon />}
+              Create site
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
+    </Dialog>
   )
 }
