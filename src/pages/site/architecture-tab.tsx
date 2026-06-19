@@ -6,6 +6,7 @@ import {
   DatabaseIcon,
   GlobeIcon,
   MinusIcon,
+  NetworkIcon,
   PlusIcon,
   RotateCwIcon,
   ServerIcon,
@@ -99,19 +100,27 @@ function ProcessNode({
         </div>
 
         {(proc.containers ?? []).length > 0 && (
-          <div className="flex flex-col gap-1 border-t pt-2">
-            {(proc.containers ?? []).map((name) => (
+          <div className="flex flex-col gap-1.5 border-t pt-2">
+            {(proc.containers ?? []).map((c) => (
               <div
-                key={name}
+                key={c.name}
                 className="flex items-center justify-between gap-2"
               >
-                <code className="truncate font-mono text-[11px] text-muted-foreground">
-                  {name}
-                </code>
+                <div className="flex min-w-0 flex-col">
+                  <code className="truncate font-mono text-[11px] text-muted-foreground">
+                    {c.name}
+                  </code>
+                  {c.ip && (
+                    <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70">
+                      <NetworkIcon className="size-2.5" />
+                      {c.ip}
+                    </span>
+                  )}
+                </div>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Open console in ${name}`}
+                  aria-label={`Open console in ${c.name}`}
                   title="Open console"
                   render={
                     <Link

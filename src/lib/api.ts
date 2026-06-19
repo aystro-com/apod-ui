@@ -62,6 +62,11 @@ export interface Backup {
   created_at: string
 }
 
+export interface ContainerRef {
+  name: string
+  ip: string
+}
+
 export interface ProcessInfo {
   service: string
   role: string
@@ -70,7 +75,7 @@ export interface ProcessInfo {
   replicas: number
   running: number
   scalable: boolean
-  containers: string[]
+  containers: ContainerRef[]
 }
 
 export interface BackupSchedule {

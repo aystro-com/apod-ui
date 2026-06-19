@@ -9,10 +9,10 @@ const site = makeSite()
 function setup(extra: Record<string, unknown> = {}) {
   return mockApi({
     "GET /api/v1/sites/example.com/processes": [
-      { service: "app", role: "web", image: "img", command: "", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-app"] },
-      { service: "queue", role: "worker", image: "img", command: "queue:work", replicas: 2, running: 2, scalable: true, containers: ["apod-example.com-queue-0", "apod-example.com-queue-1"] },
-      { service: "scheduler", role: "scheduler", image: "img", command: "schedule:work", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-scheduler"] },
-      { service: "db", role: "", image: "mysql", command: "", replicas: 1, running: 1, scalable: false, containers: ["apod-example.com-db"] },
+      { service: "app", role: "web", image: "img", command: "", replicas: 1, running: 1, scalable: false, containers: [{ name: "apod-example.com-app", ip: "172.20.0.2" }] },
+      { service: "queue", role: "worker", image: "img", command: "queue:work", replicas: 2, running: 2, scalable: true, containers: [{ name: "apod-example.com-queue-0", ip: "172.20.0.3" }, { name: "apod-example.com-queue-1", ip: "172.20.0.4" }] },
+      { service: "scheduler", role: "scheduler", image: "img", command: "schedule:work", replicas: 1, running: 1, scalable: false, containers: [{ name: "apod-example.com-scheduler", ip: "172.20.0.5" }] },
+      { service: "db", role: "", image: "mysql", command: "", replicas: 1, running: 1, scalable: false, containers: [{ name: "apod-example.com-db", ip: "172.20.0.6" }] },
     ],
     ...extra,
   })
