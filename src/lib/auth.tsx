@@ -31,6 +31,8 @@ export interface Session {
   kind: "key" | "session"
   role: "admin" | "user"
   name?: string
+  /** May this identity provision sites? Always true for admins. */
+  canCreateSites: boolean
 }
 
 function loadStored(): Session | null {
@@ -42,14 +44,22 @@ function loadStored(): Session | null {
       const parsed = JSON.parse(raw) as Session & { apiKey?: string }
       // Migrate sessions stored by older UI versions ({ apiKey } shape).
       if (!parsed.token && parsed.apiKey) {
+        const role = parsed.role === "user" ? "user" : "admin"
         return {
           baseUrl: parsed.baseUrl ?? "",
           token: parsed.apiKey,
           kind: "key",
-          role: parsed.role === "user" ? "user" : "admin",
+          role,
+          canCreateSites: role === "admin",
         }
       }
-      if (parsed.token && typeof parsed.baseUrl === "string") return parsed
+      if (parsed.token && typeof parsed.baseUrl === "string") {
+        // Default missing capability (older stored sessions) from the role.
+        return {
+          ...parsed,
+          canCreateSites: parsed.canCreateSites ?? parsed.role === "admin",
+        }
+      }
     } catch {
       /* ignore corrupt/unavailable storage */
     }
@@ -115,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           kind: "session",
           role: res.user.role === "admin" ? "admin" : "user",
           name: res.user.name,
+          canCreateSites:
+            res.user.role === "admin" || !!res.user.can_create_sites,
         }
       } else {
         const probe = new ApiClient({
@@ -127,10 +139,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // admin-endpoint probe instead.
         let role: "admin" | "user" = "admin"
         let name: string | undefined
+        let canCreate = true
         try {
           const identity = await probe.me()
           role = identity.role === "admin" ? "admin" : "user"
           name = identity.name
+          canCreate = role === "admin" || !!identity.can_create_sites
         } catch (err) {
           if (err instanceof ApiError && err.status === 401) throw err
           try {
@@ -138,6 +152,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (probeErr) {
             if (probeErr instanceof ApiError && probeErr.status === 403) {
               role = "user"
+              // Older server without /auth/me: assume no create permission for
+              // non-admins; an admin can grant it and they'll re-login.
+              canCreate = false
             } else if (probeErr instanceof ApiError && probeErr.status === 401) {
               throw probeErr
             }
@@ -150,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           kind: "key",
           role,
           name,
+          canCreateSites: canCreate,
         }
       }
 

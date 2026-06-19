@@ -167,6 +167,12 @@ export function UsersPage() {
     invalidates: [["users"]],
     successTitle: "User deleted",
   })
+  const setCanCreate = useAction({
+    fn: ({ userName, allowed }: { userName: string; allowed: boolean }) =>
+      api.setUserCanCreateSites(userName, allowed),
+    invalidates: [["users"]],
+    successTitle: "Site-creation permission updated",
+  })
 
   function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -276,6 +282,7 @@ export function UsersPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Login</TableHead>
+                    <TableHead>Can create sites</TableHead>
                     <TableHead>UID</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-64 text-right">Actions</TableHead>
@@ -294,6 +301,25 @@ export function UsersPage() {
                         <Badge variant="outline">
                           {u.has_password ? "password login" : "key only"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {u.role === "admin" ? (
+                          <Badge variant="secondary">always</Badge>
+                        ) : (
+                          <Button
+                            variant={u.can_create_sites ? "default" : "outline"}
+                            size="sm"
+                            disabled={setCanCreate.isPending}
+                            onClick={() =>
+                              setCanCreate.mutate({
+                                userName: u.name,
+                                allowed: !u.can_create_sites,
+                              })
+                            }
+                          >
+                            {u.can_create_sites ? "Allowed" : "Blocked"}
+                          </Button>
+                        )}
                       </TableCell>
                       <TableCell className="tabular-nums">{u.uid}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">

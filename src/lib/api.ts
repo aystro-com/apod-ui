@@ -159,6 +159,7 @@ export interface ApodUser {
   role: string
   api_key?: string
   has_password?: boolean
+  can_create_sites?: boolean
   created_at: string
 }
 
@@ -166,6 +167,7 @@ export interface Identity {
   name: string
   role: string
   totp_enabled?: boolean
+  can_create_sites?: boolean
 }
 
 export interface LoginResponse {
@@ -731,6 +733,11 @@ export class ApiClient {
     this.delete<unknown>(`/api/v1/users/${encodeURIComponent(name)}`)
   resetUserKey = (name: string) =>
     this.post<ApodUser>(`/api/v1/users/${encodeURIComponent(name)}/reset-key`)
+  setUserCanCreateSites = (name: string, canCreateSites: boolean) =>
+    this.post<unknown>(
+      `/api/v1/users/${encodeURIComponent(name)}/permissions`,
+      { can_create_sites: canCreateSites },
+    )
 
   // Firewall (admin)
   firewallStatus = () => this.get<FirewallStatus>("/api/v1/firewall")

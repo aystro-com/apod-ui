@@ -21,7 +21,8 @@ import { useApi } from "@/lib/auth"
 import { timeAgo } from "@/lib/format"
 
 export function SitesPage() {
-  const { api } = useApi()
+  const { api, session } = useApi()
+  const canCreate = session.role === "admin" || session.canCreateSites
   const [filter, setFilter] = useState("")
 
   const sites = useQuery({ queryKey: ["sites"], queryFn: api.listSites })
@@ -44,10 +45,12 @@ export function SitesPage() {
         title="Sites"
         description="Every site runs in its own isolated container stack."
         actions={
-          <Button render={<Link to="/sites/new" />}>
-            <PlusIcon />
-            New site
-          </Button>
+          canCreate ? (
+            <Button render={<Link to="/sites/new" />}>
+              <PlusIcon />
+              New site
+            </Button>
+          ) : undefined
         }
       />
 

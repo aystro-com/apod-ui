@@ -42,6 +42,7 @@ export function SiteCreatePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const isAdmin = session.role === "admin"
+  const canCreate = isAdmin || session.canCreateSites
 
   const drivers = useQuery({ queryKey: ["drivers"], queryFn: api.listDrivers })
   const users = useQuery({
@@ -127,6 +128,30 @@ export function SiteCreatePage() {
       return
     }
     create.mutate()
+  }
+
+  if (!canCreate) {
+    return (
+      <>
+        <PageHeader
+          title="New site"
+          description="Provision an isolated container stack with automatic SSL."
+          actions={
+            <Button variant="ghost" render={<Link to="/sites" />}>
+              <ArrowLeftIcon />
+              Back to sites
+            </Button>
+          }
+        />
+        <Alert className="max-w-2xl">
+          <AlertTitle>You can't create sites</AlertTitle>
+          <AlertDescription>
+            Your account doesn't have permission to provision sites. Ask an
+            administrator to grant you site-creation access.
+          </AlertDescription>
+        </Alert>
+      </>
+    )
   }
 
   return (

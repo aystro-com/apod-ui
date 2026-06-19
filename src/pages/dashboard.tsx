@@ -57,6 +57,7 @@ function StatCard({
 export function DashboardPage() {
   const { api, session } = useApi()
   const isAdmin = session.role === "admin"
+  const canCreate = isAdmin || session.canCreateSites
 
   const stats = useQuery({
     queryKey: ["server-stats"],
@@ -76,10 +77,12 @@ export function DashboardPage() {
         title="Dashboard"
         description="Live overview of your server and sites."
         actions={
-          <Button render={<Link to="/sites/new" />}>
-            <PlusIcon />
-            New site
-          </Button>
+          canCreate ? (
+            <Button render={<Link to="/sites/new" />}>
+              <PlusIcon />
+              New site
+            </Button>
+          ) : undefined
         }
       />
 
@@ -131,10 +134,12 @@ export function DashboardPage() {
                 title="No sites yet"
                 description="Create your first site to see resource usage here."
                 action={
-                  <Button render={<Link to="/sites/new" />} variant="outline">
-                    <PlusIcon />
-                    Create site
-                  </Button>
+                  canCreate ? (
+                    <Button render={<Link to="/sites/new" />} variant="outline">
+                      <PlusIcon />
+                      Create site
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : (
