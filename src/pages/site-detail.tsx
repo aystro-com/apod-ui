@@ -26,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useApi } from "@/lib/auth"
+import { timeAgo } from "@/lib/format"
 import type { DeployEvent, Site } from "@/lib/api"
 import { ArchitectureTab } from "@/pages/site/architecture-tab"
 import { BackupsTab } from "@/pages/site/backups-tab"
@@ -83,10 +84,22 @@ export function SiteDetailPage() {
     enabled: !!domain,
   })
 
+  // Live "what is this site busy with" poll. While an operation holds the site
+  // lock (deploying, restarting, backing up…), this drives the banner that
+  // explains why other actions return "site is busy" — refreshed quickly so it
+  // feels live, and slowed right down when idle.
+  const activity = useQuery({
+    queryKey: ["activity", domain],
+    queryFn: () => api.getSiteActivity(domain),
+    enabled: !!domain,
+    refetchInterval: (q) => (q.state.data?.held ? 2000 : 15000),
+  })
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["site", domain] })
     queryClient.invalidateQueries({ queryKey: ["sites"] })
     queryClient.invalidateQueries({ queryKey: ["monitor"] })
+    queryClient.invalidateQueries({ queryKey: ["activity", domain] })
   }
 
   const lifecycle = useMutation({
@@ -243,6 +256,23 @@ export function SiteDetailPage() {
           </>
         }
       />
+
+      {activity.data?.held && (
+        <Card className="border-info/40 bg-info/5">
+          <CardPanel className="flex items-center gap-3 py-3">
+            <Spinner className="size-4 text-info" />
+            <div className="flex flex-col">
+              <span className="font-medium capitalize">
+                {activity.data.operation}…
+              </span>
+              <span className="text-muted-foreground text-xs">
+                This site is busy — started {timeAgo(activity.data.since)}. Other
+                actions will be blocked until it finishes.
+              </span>
+            </div>
+          </CardPanel>
+        </Card>
+      )}
 
       {(update.isPending || updateEvents.length > 0) && (
         <Card>

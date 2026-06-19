@@ -95,6 +95,13 @@ export interface ProcessInfo {
   containers: ContainerRef[]
 }
 
+/** What a site is currently busy with (the held per-site operation lock). */
+export interface SiteActivity {
+  operation: string
+  since: string
+  held: boolean
+}
+
 export interface BackupSchedule {
   id: number
   site_domain: string
@@ -405,6 +412,8 @@ export class ApiClient {
   // Sites
   listSites = () => this.get<Site[]>("/api/v1/sites")
   getSite = (domain: string) => this.get<Site>(this.sitePath(domain))
+  getSiteActivity = (domain: string) =>
+    this.get<SiteActivity>(this.sitePath(domain, "/activity"))
   getSiteInfo = (domain: string) =>
     this.get<SiteInfo>(this.sitePath(domain, "/info"))
   createSite = (body: {
