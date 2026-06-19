@@ -17,6 +17,19 @@ describe("NetworksPage", () => {
     expect(screen.getByText("erp.example.com")).toBeInTheDocument()
   })
 
+  it("survives a network whose members come back null", async () => {
+    // The server can return members: null for a brand-new empty network.
+    mockApi({
+      "GET /api/v1/networks": [
+        { name: "fresh", owner: "admin", members: null },
+      ],
+      "GET /api/v1/sites": [{ domain: "a.example.com" }],
+    })
+    renderWithProviders(<NetworksPage />)
+    expect(await screen.findByText("fresh")).toBeInTheDocument()
+    expect(screen.getByText(/0 sites/i)).toBeInTheDocument()
+  })
+
   it("creates a network", async () => {
     const { calls } = mockApi({
       "GET /api/v1/networks": [],
