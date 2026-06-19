@@ -47,21 +47,21 @@ describe("SecurityTab", () => {
     expect(await screen.findByText("deploy")).toBeInTheDocument()
   })
 
-  it("blocks an IP address", async () => {
+  it("allows a CIDR range (advertised in the placeholder)", async () => {
     const { calls } = setup({
-      "POST /api/v1/sites/example.com/ip/block": { status: "blocked" },
+      "POST /api/v1/sites/example.com/ip/allow": { status: "allowed" },
     })
     renderWithProviders(<SecurityTab site={site} />)
     const user = userEvent.setup()
-    const input = await screen.findByPlaceholderText(/203\.0\.113|ip address/i)
-    await user.type(input, "9.9.9.9")
-    await user.click(screen.getByRole("button", { name: /^block$/i }))
+    const input = await screen.findByPlaceholderText(/203\.0\.113|10\.0\.0\.0/i)
+    await user.type(input, "10.0.0.0/8")
+    await user.click(screen.getByRole("button", { name: /^allow$/i }))
     await waitFor(() => {
       expect(
         calls.some(
           (c) =>
-            c.path === "/api/v1/sites/example.com/ip/block" &&
-            JSON.stringify(c.body) === JSON.stringify({ ip: "9.9.9.9" }),
+            c.path === "/api/v1/sites/example.com/ip/allow" &&
+            JSON.stringify(c.body) === JSON.stringify({ ip: "10.0.0.0/8" }),
         ),
       ).toBe(true)
     })
@@ -93,9 +93,9 @@ describe("SecurityTab", () => {
     const user = userEvent.setup()
     const input = await screen.findByPlaceholderText(/203\.0\.113|ip address/i)
     await user.type(input, "not-an-ip")
-    await user.click(screen.getByRole("button", { name: /^block$/i }))
+    await user.click(screen.getByRole("button", { name: /^allow$/i }))
     expect(await screen.findByText(/valid ip/i)).toBeInTheDocument()
-    expect(calls.some((c) => c.path.endsWith("/ip/block"))).toBe(false)
+    expect(calls.some((c) => c.path.endsWith("/ip/allow"))).toBe(false)
   })
 
   it("creates an FTP account", async () => {

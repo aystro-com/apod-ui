@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { BanIcon, KeyIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { KeyIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState, ErrorState, LoadingRows } from "@/components/data-state"
 import { Badge } from "@/components/ui/badge"
@@ -84,12 +84,6 @@ export function SecurityTab({ site }: { site: Site }) {
     successTitle: "IP allowed",
     onSuccess: () => setIp(""),
   })
-  const block = useAction({
-    fn: (address: string) => api.blockIP(site.domain, address),
-    invalidates: [["ip-rules", site.domain]],
-    successTitle: "IP blocked",
-    onSuccess: () => setIp(""),
-  })
   const unblock = useAction({
     fn: (address: string) => api.unblockIP(site.domain, address),
     invalidates: [["ip-rules", site.domain]],
@@ -115,15 +109,14 @@ export function SecurityTab({ site }: { site: Site }) {
     successTitle: "FTP account removed",
   })
 
-  function submitIP(action: "allow" | "block") {
+  function submitIP() {
     setIpError(null)
     const address = ip.trim()
     if (!isValidIP(address)) {
-      setIpError("Enter a valid IP address, e.g. 203.0.113.7.")
+      setIpError("Enter a valid IP address or CIDR, e.g. 203.0.113.7 or 10.0.0.0/8.")
       return
     }
-    if (action === "allow") allow.mutate(address)
-    else block.mutate(address)
+    allow.mutate(address)
   }
 
   const hasAllowRule = (ips.data ?? []).some((r) => r.action === "allow")
@@ -139,9 +132,10 @@ export function SecurityTab({ site }: { site: Site }) {
         <CardHeader>
           <CardTitle>IP access</CardTitle>
           <CardDescription>
-            Allow or block source addresses at the reverse proxy. Once any{" "}
-            <strong>allow</strong> rule exists, the site switches to allowlist
-            mode — only listed IPs/CIDRs can reach it.
+            Restrict which source addresses can reach this site at the reverse
+            proxy. Adding an <strong>allow</strong> rule switches the site to
+            allowlist mode — only listed IPs/CIDRs can reach it; everything else
+            is denied.
           </CardDescription>
         </CardHeader>
         <CardPanel className="flex flex-col gap-4">
@@ -154,7 +148,7 @@ export function SecurityTab({ site }: { site: Site }) {
             className="flex flex-wrap items-start gap-2"
             onSubmit={(e) => {
               e.preventDefault()
-              submitIP("block")
+              submitIP()
             }}
           >
             <div className="flex flex-col gap-1">
@@ -170,18 +164,9 @@ export function SecurityTab({ site }: { site: Site }) {
                 <p className="text-destructive-foreground text-xs">{ipError}</p>
               )}
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!ip.trim() || allow.isPending}
-              onClick={() => submitIP("allow")}
-            >
+            <Button type="submit" disabled={!ip.trim() || allow.isPending}>
               {allow.isPending ? <Spinner className="size-4" /> : <PlusIcon />}
               Allow
-            </Button>
-            <Button type="submit" disabled={!ip.trim() || block.isPending}>
-              {block.isPending ? <Spinner className="size-4" /> : <BanIcon />}
-              Block
             </Button>
           </form>
 
