@@ -71,6 +71,38 @@ describe("SiteDetailPage", () => {
     })
   })
 
+  it("shows a live busy banner while an operation holds the lock", async () => {
+    setup(
+      {},
+      {
+        "GET /api/v1/sites/example.com/activity": {
+          operation: "deploying",
+          since: new Date().toISOString(),
+          held: true,
+        },
+      },
+    )
+    renderDetail()
+    expect(await screen.findByText(/deploying/i)).toBeInTheDocument()
+    expect(screen.getByText(/this site is busy/i)).toBeInTheDocument()
+  })
+
+  it("hides the busy banner when the site is idle", async () => {
+    setup(
+      {},
+      {
+        "GET /api/v1/sites/example.com/activity": {
+          operation: "",
+          since: "0001-01-01T00:00:00Z",
+          held: false,
+        },
+      },
+    )
+    renderDetail()
+    await screen.findByRole("heading", { name: /example\.com/ })
+    expect(screen.queryByText(/this site is busy/i)).not.toBeInTheDocument()
+  })
+
   it("shows an error state for a missing site", async () => {
     mockApi({
       "GET /api/v1/sites/example.com": { status: 404, error: "site not found" },
