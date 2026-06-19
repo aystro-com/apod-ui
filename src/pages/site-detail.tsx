@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { type ComponentType, useEffect, useRef, useState } from "react"
+import { type ComponentType } from "react"
 import {
   ArrowLeftIcon,
   ArrowUpCircleIcon,
@@ -15,19 +15,14 @@ import { StatusBadge } from "@/components/status-badge"
 import { ErrorState, LoadingRows } from "@/components/data-state"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardPanel,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardPanel } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { toastManager } from "@/components/ui/toast"
 import { useApi } from "@/lib/auth"
+import { useSiteEventStream } from "@/lib/use-site-stream"
 import { timeAgo } from "@/lib/format"
-import type { DeployEvent, Site } from "@/lib/api"
+import type { Site } from "@/lib/api"
 import { ArchitectureTab } from "@/pages/site/architecture-tab"
 import { BackupsTab } from "@/pages/site/backups-tab"
 import { ConsoleTab } from "@/pages/site/console-tab"
@@ -92,7 +87,7 @@ export function SiteDetailPage() {
     queryKey: ["activity", domain],
     queryFn: () => api.getSiteActivity(domain),
     enabled: !!domain,
-    refetchInterval: (q) => (q.state.data?.held ? 2000 : 15000),
+    refetchInterval: (q) => (q.state.data?.held ? 2000 : 5000),
   })
 
   const invalidate = () => {
@@ -102,12 +97,18 @@ export function SiteDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["activity", domain] })
   }
 
+  // Flip the busy banner on the instant an action starts, rather than waiting
+  // for the next activity poll to notice the server-side lock.
+  const bumpActivity = () =>
+    queryClient.invalidateQueries({ queryKey: ["activity", domain] })
+
   const lifecycle = useMutation({
     mutationFn: ({ action }: { action: "start" | "stop" | "restart" }) => {
       if (action === "start") return api.startSite(domain)
       if (action === "stop") return api.stopSite(domain)
       return api.restartSite(domain)
     },
+    onMutate: bumpActivity,
     onSuccess: (_d, { action }) => {
       invalidate()
       toastManager.add({
@@ -123,26 +124,12 @@ export function SiteDetailPage() {
       }),
   })
 
-  // Pull the latest image(s) and recreate containers, streaming live progress.
-  const [updateEvents, setUpdateEvents] = useState<DeployEvent[]>([])
-  const streamRef = useRef<AbortController | null>(null)
-  // Always abort the SSE stream on unmount — a leaked stream holds a browser
-  // connection (HTTP/1.1 allows only ~6 per host), which can stall later
-  // requests like the Sites list until it times out server-side.
-  useEffect(() => () => streamRef.current?.abort(), [])
+  // Pull the latest image(s) and recreate containers. Live progress is shown by
+  // the shared busy banner below (driven by the site event stream), so there's
+  // no bespoke streaming here anymore.
   const update = useMutation({
-    mutationFn: () => {
-      setUpdateEvents([])
-      streamRef.current?.abort()
-      const controller = new AbortController()
-      streamRef.current = controller
-      void api.streamDeployEvents(
-        domain,
-        (ev) => setUpdateEvents((prev) => [...prev, ev]),
-        controller.signal,
-      )
-      return api.updateSite(domain)
-    },
+    mutationFn: () => api.updateSite(domain),
+    onMutate: bumpActivity,
     onSuccess: () => {
       invalidate()
       toastManager.add({ title: "Updated to latest", type: "success" })
@@ -153,8 +140,23 @@ export function SiteDetailPage() {
         description: err instanceof Error ? err.message : undefined,
         type: "error",
       }),
-    onSettled: () => streamRef.current?.abort(),
   })
+
+  // A long operation is in flight if the server reports the lock held, or a
+  // page-initiated action is still pending (covers the gap before the next
+  // poll). While busy we stream live steps for the banner.
+  const pendingLabel = update.isPending
+    ? "updating"
+    : lifecycle.isPending
+      ? lifecycle.variables?.action === "stop"
+        ? "stopping"
+        : lifecycle.variables?.action === "start"
+          ? "starting"
+          : "restarting"
+      : undefined
+  const busy = !!activity.data?.held || update.isPending || lifecycle.isPending
+  const opLabel = activity.data?.operation ?? pendingLabel ?? "working"
+  const opEvents = useSiteEventStream(domain, busy)
 
   const base = `/sites/${encodeURIComponent(domain)}`
   const splat = (params._splat ?? "").split("/")[0]
@@ -257,34 +259,24 @@ export function SiteDetailPage() {
         }
       />
 
-      {activity.data?.held && (
+      {busy && (
         <Card className="border-info/40 bg-info/5">
-          <CardPanel className="flex items-center gap-3 py-3">
-            <Spinner className="size-4 text-info" />
-            <div className="flex flex-col">
-              <span className="font-medium capitalize">
-                {activity.data.operation}…
-              </span>
-              <span className="text-muted-foreground text-xs">
-                This site is busy — started {timeAgo(activity.data.since)}. Other
-                actions will be blocked until it finishes.
-              </span>
+          <CardPanel className="flex flex-col gap-3 py-3">
+            <div className="flex items-center gap-3">
+              <Spinner className="size-4 text-info" />
+              <div className="flex flex-col">
+                <span className="font-medium capitalize">{opLabel}…</span>
+                <span className="text-muted-foreground text-xs">
+                  This site is busy
+                  {activity.data?.since
+                    ? ` — started ${timeAgo(activity.data.since)}`
+                    : ""}
+                  . Other actions are blocked until it finishes — you can leave
+                  this page, it keeps running.
+                </span>
+              </div>
             </div>
-          </CardPanel>
-        </Card>
-      )}
-
-      {(update.isPending || updateEvents.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Updating to latest</CardTitle>
-            <CardDescription>
-              Pulling the newest image(s) and recreating containers. You can
-              leave this page — the update keeps running.
-            </CardDescription>
-          </CardHeader>
-          <CardPanel>
-            <DeployProgress events={updateEvents} />
+            {opEvents.length > 0 && <DeployProgress events={opEvents} />}
           </CardPanel>
         </Card>
       )}

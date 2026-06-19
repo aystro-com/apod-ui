@@ -429,18 +429,19 @@ export class ApiClient {
   }) => this.post<Site>("/api/v1/sites", body)
 
   /**
-   * Streams a site's live deployment progress (Server-Sent Events) via fetch —
+   * Streams a site's live operation progress (Server-Sent Events) via fetch —
    * EventSource can't send the Bearer header, so we read the body ourselves.
-   * Resolves when the stream ends (terminal event, disconnect, or abort).
-   * Retries briefly on 404 to cover the gap between firing createSite and the
-   * site record existing server-side.
+   * The stream now carries any long operation (deploy, update, clone, destroy,
+   * backup, restore…), not just deploys. Resolves when the stream ends
+   * (terminal event, disconnect, or abort). Retries briefly on 404 to cover the
+   * gap between firing createSite and the site record existing server-side.
    */
   streamDeployEvents = async (
     domain: string,
     onEvent: (ev: DeployEvent) => void,
     signal?: AbortSignal,
   ): Promise<void> => {
-    const url = this.baseUrl + this.sitePath(domain, "/deploy/events")
+    const url = this.baseUrl + this.sitePath(domain, "/events")
     let res: Response | undefined
     for (let attempt = 0; attempt < 4; attempt++) {
       if (signal?.aborted) return
