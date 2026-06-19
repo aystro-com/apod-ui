@@ -65,6 +65,7 @@ export interface Backup {
 export interface ContainerRef {
   name: string
   ip: string
+  running: boolean
 }
 
 export interface SharedNetwork {

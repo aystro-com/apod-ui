@@ -112,11 +112,17 @@ function ProcessNode({
                   <code className="truncate font-mono text-[11px] text-muted-foreground">
                     {c.name}
                   </code>
-                  {c.ip && (
+                  {c.ip ? (
                     <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70">
                       <NetworkIcon className="size-2.5" />
                       {c.ip}
                     </span>
+                  ) : (
+                    !c.running && (
+                      <span className="font-mono text-[10px] text-muted-foreground/60">
+                        stopped — no IP
+                      </span>
+                    )
                   )}
                 </div>
                 <Button
@@ -370,10 +376,14 @@ function NeighborNode({ neighbor }: { neighbor: NetworkNeighbor }) {
         <code className="truncate font-mono text-[11px] text-muted-foreground">
           {neighbor.name}
         </code>
-        {neighbor.ip && (
+        {neighbor.ip ? (
           <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70">
             <NetworkIcon className="size-2.5" />
             {neighbor.ip}
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] text-muted-foreground/60">
+            {neighbor.running ? "no shared IP" : "stopped — joins on start"}
           </span>
         )}
       </div>
