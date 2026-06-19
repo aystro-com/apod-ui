@@ -148,6 +148,11 @@ export function SettingsTab({ site }: { site: Site }) {
 
   const destroy = useAction({
     fn: () => api.destroySite(site.domain, purge),
+    // Flip the busy banner + live progress stream the instant destroy starts,
+    // rather than waiting for the next activity poll to notice the lock (a fast
+    // destroy can otherwise finish before the poll, showing no progress at all).
+    onMutate: () =>
+      queryClient.invalidateQueries({ queryKey: ["activity", site.domain] }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sites"] })
       toastManager.add({ title: "Site destroyed", type: "success" })

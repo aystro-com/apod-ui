@@ -8,6 +8,7 @@ const ev = (over: Partial<DeployEvent>): DeployEvent => ({
   step: "Step",
   status: "running",
   percent: 0,
+  run: 1,
   time: "2026-01-01T00:00:00Z",
   ...over,
 })

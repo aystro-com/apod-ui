@@ -337,6 +337,8 @@ export interface DeployEvent {
   status: "running" | "done" | "error"
   detail?: string
   percent: number
+  /** Per-domain operation id; changes when a new operation begins. */
+  run: number
   time: string
 }
 
@@ -358,13 +360,32 @@ function normalizeDeployEvent(raw: unknown): DeployEvent | null {
   const percent = Number.isFinite(percentNum)
     ? Math.min(100, Math.max(0, percentNum))
     : 0
+  const runNum = Number(r.run)
   return {
     step: typeof r.step === "string" && r.step ? r.step : "Working…",
     status,
     detail: typeof r.detail === "string" ? r.detail : undefined,
     percent,
+    run: Number.isFinite(runNum) ? runNum : 0,
     time: typeof r.time === "string" ? r.time : "",
   }
+}
+
+/**
+ * Append a streamed event to the accumulated list, but start a fresh list when
+ * the operation changes (its `run` id differs from the events already held).
+ * This is what stops a retained buffer from a just-finished operation — e.g. a
+ * destroy whose final 100% event is replayed when the next subscriber connects —
+ * from bleeding into the next operation and pinning its progress bar.
+ */
+export function appendDeployEvent(
+  prev: DeployEvent[],
+  ev: DeployEvent,
+  max = 500,
+): DeployEvent[] {
+  const lastRun = prev[prev.length - 1]?.run
+  if (lastRun !== undefined && ev.run !== lastRun) return [ev]
+  return [...prev, ev].slice(-max)
 }
 
 export class ApiClient {

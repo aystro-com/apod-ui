@@ -1,10 +1,48 @@
 import { describe, expect, it, vi } from "vitest"
 import { mockApi, TEST_BASE, TEST_KEY } from "@/test/utils"
-import { ApiClient, ApiError } from "./api"
+import { ApiClient, ApiError, appendDeployEvent, type DeployEvent } from "./api"
 
 function client(onUnauthorized?: () => void) {
   return new ApiClient({ baseUrl: TEST_BASE, apiKey: TEST_KEY, onUnauthorized })
 }
+
+describe("appendDeployEvent", () => {
+  const mk = (over: Partial<DeployEvent>): DeployEvent => ({
+    step: "Step",
+    status: "running",
+    percent: 0,
+    run: 1,
+    time: "",
+    ...over,
+  })
+
+  it("accumulates events within the same run", () => {
+    let acc: DeployEvent[] = []
+    acc = appendDeployEvent(acc, mk({ step: "Preparing", percent: 2 }))
+    acc = appendDeployEvent(acc, mk({ step: "Ready", percent: 100 }))
+    expect(acc.map((e) => e.step)).toEqual(["Preparing", "Ready"])
+  })
+
+  it("resets when a new run begins, so a stale buffer can't bleed in", () => {
+    // A replayed prior-op buffer (a finished destroy, run 7) ...
+    let acc = [
+      mk({ step: "Destroying", run: 7, percent: 10 }),
+      mk({ step: "Destroyed", run: 7, status: "done", percent: 100 }),
+    ]
+    // ... is wiped the instant the next operation's first event arrives.
+    acc = appendDeployEvent(acc, mk({ step: "Preparing", run: 8, percent: 2 }))
+    expect(acc).toHaveLength(1)
+    expect(acc[0].step).toBe("Preparing")
+    // And the max-percent no longer sticks at the stale 100.
+    expect(Math.max(...acc.map((e) => e.percent))).toBe(2)
+  })
+
+  it("caps the retained list", () => {
+    let acc: DeployEvent[] = []
+    for (let i = 0; i < 10; i++) acc = appendDeployEvent(acc, mk({ percent: i }), 3)
+    expect(acc).toHaveLength(3)
+  })
+})
 
 describe("ApiClient", () => {
   it("sends the API key as a Bearer token and unwraps the envelope", async () => {

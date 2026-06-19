@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeftIcon, RocketIcon } from "lucide-react"
 import { DeployProgress } from "@/components/deploy-progress"
-import type { DeployEvent } from "@/lib/api"
+import { appendDeployEvent, type DeployEvent } from "@/lib/api"
 import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -77,8 +77,10 @@ export function SiteCreatePage() {
       streamRef.current = controller
       void api.streamDeployEvents(
         d,
-        // Cap retained events so a long/chatty stream can't grow unbounded.
-        (ev) => setDeployEvents((prev) => [...prev, ev].slice(-500)),
+        // Cap retained events, and reset when a new operation's run id arrives
+        // so a stale replayed buffer (e.g. a just-finished destroy of the same
+        // domain) can't bleed into this create's progress.
+        (ev) => setDeployEvents((prev) => appendDeployEvent(prev, ev)),
         controller.signal,
       )
       return api.createSite({

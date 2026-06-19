@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { DeployEvent } from "@/lib/api"
+import { appendDeployEvent, type DeployEvent } from "@/lib/api"
 import { useApi } from "@/lib/auth"
 
 /** Upper bound on retained stream events — far more than any real operation. */
@@ -28,8 +28,10 @@ export function useSiteEventStream(
     void api.streamDeployEvents(
       domain,
       // Cap the retained events so a long-running or misbehaving server stream
-      // can't grow this array (and its O(n) re-render cost) without bound.
-      (ev) => setEvents((prev) => [...prev, ev].slice(-MAX_STREAM_EVENTS)),
+      // can't grow this array (and its O(n) re-render cost) without bound, and
+      // drop a prior operation's replayed events when a new run begins.
+      (ev) =>
+        setEvents((prev) => appendDeployEvent(prev, ev, MAX_STREAM_EVENTS)),
       controller.signal,
     )
     // Reset on teardown (deactivation / domain change / unmount) so the next
