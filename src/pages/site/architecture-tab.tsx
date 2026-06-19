@@ -185,21 +185,21 @@ function ProcessNode({
             <span className="text-muted-foreground">
               {proc.role === "scheduler" ? "Singleton" : "Managed"}
             </span>
-            {proc.role !== "" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={busy}
-                onClick={() => restart.mutate(undefined)}
-              >
-                {restart.isPending ? (
-                  <Spinner className="size-4" />
-                ) : (
-                  <RotateCwIcon />
-                )}
-                Restart
-              </Button>
-            )}
+            {/* Every service can be restarted, including plain backing
+                services like the database (role ""). */}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => restart.mutate(undefined)}
+            >
+              {restart.isPending ? (
+                <Spinner className="size-4" />
+              ) : (
+                <RotateCwIcon />
+              )}
+              Restart
+            </Button>
           </div>
         )}
       </div>

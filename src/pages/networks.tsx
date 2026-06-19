@@ -138,10 +138,11 @@ function NetworkCard({ net }: { net: SharedNetwork }) {
   const { api } = useApi()
   const [toAdd, setToAdd] = useState("")
 
+  const members = net.members ?? []
   const sites = useQuery({ queryKey: ["sites"], queryFn: api.listSites })
   const candidates = (sites.data ?? [])
     .map((s) => s.domain)
-    .filter((d) => !net.members.includes(d))
+    .filter((d) => !members.includes(d))
 
   const addMember = useAction({
     fn: () => api.addNetworkMember(net.name, toAdd),
@@ -172,7 +173,7 @@ function NetworkCard({ net }: { net: SharedNetwork }) {
             </code>
           </CardTitle>
           <CardDescription>
-            {net.members.length} site{net.members.length === 1 ? "" : "s"} ·
+            {members.length} site{members.length === 1 ? "" : "s"} ·
             owner {net.owner || "admin"}
           </CardDescription>
         </div>
@@ -189,11 +190,11 @@ function NetworkCard({ net }: { net: SharedNetwork }) {
         />
       </CardHeader>
       <CardPanel className="flex flex-col gap-4">
-        {net.members.length === 0 ? (
+        {members.length === 0 ? (
           <p className="text-muted-foreground text-sm">No sites in this network yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {net.members.map((m) => (
+            {members.map((m) => (
               <Badge key={m} variant="secondary" className="gap-1.5 py-1 pr-1">
                 <LinkIcon className="size-3" />
                 {m}

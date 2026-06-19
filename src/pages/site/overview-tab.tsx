@@ -17,11 +17,34 @@ import { useApi } from "@/lib/auth"
 import { formatDate, formatMB } from "@/lib/format"
 import type { Site } from "@/lib/api"
 
-const SECRET_KEY_RE = /(pass|secret|key|token)/i
+// Non-sensitive keys that are safe to render in cleartext. Everything ELSE is
+// masked by default — a denylist misses credential-ish keys (DATABASE_URL,
+// DASHBOARD_USERNAME, a bare ANON key, …), so we default to masking and only
+// allowlist clearly-public fields.
+const SAFE_KEYS = new Set([
+  "domain",
+  "driver",
+  "url",
+  "host",
+  "hostname",
+  "port",
+  "region",
+  "bucket",
+  "endpoint",
+  "scheme",
+])
+// A value that embeds userinfo (scheme://user:pass@host) is always secret,
+// regardless of its key name.
+const URL_USERINFO_RE = /:\/\/[^/\s]*:[^/\s]*@/
+
+function isSecretField(name: string, value: string): boolean {
+  if (URL_USERINFO_RE.test(value)) return true
+  return !SAFE_KEYS.has(name.toLowerCase())
+}
 
 function InfoRow({ name, value }: { name: string; value: string }) {
   const [revealed, setRevealed] = useState(false)
-  const secret = SECRET_KEY_RE.test(name)
+  const secret = isSecretField(name, value)
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <span className="shrink-0 font-medium text-muted-foreground text-sm">
