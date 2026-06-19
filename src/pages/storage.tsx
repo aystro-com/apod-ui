@@ -113,7 +113,18 @@ export function StoragePage() {
         title="Backup storage"
         description="Remote destinations for backups. Local disk is always available as the default."
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog
+            open={open}
+            onOpenChange={(o) => {
+              setOpen(o)
+              // Clear entered credentials when the dialog closes (Cancel/overlay),
+              // not only on success, so secrets don't linger in client state.
+              if (!o) {
+                setConfig({})
+                setName("")
+              }
+            }}
+          >
             <DialogTrigger render={<Button />}>
               <PlusIcon />
               Add storage
@@ -181,7 +192,11 @@ export function StoragePage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setOpen(false)
+                      setConfig({})
+                      setName("")
+                    }}
                   >
                     Cancel
                   </Button>

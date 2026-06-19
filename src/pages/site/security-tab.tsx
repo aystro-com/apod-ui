@@ -30,8 +30,21 @@ const IPV4_RE =
   /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
 const IPV6_RE = /^[0-9a-fA-F:]{2,39}$/
 
+// Accepts a plain IP or CIDR (the input placeholder advertises CIDR, e.g.
+// 10.0.0.0/8). The prefix length is range-checked per family.
 function isValidIP(value: string): boolean {
-  return IPV4_RE.test(value) || (value.includes(":") && IPV6_RE.test(value))
+  let prefix: number | null = null
+  const slash = value.indexOf("/")
+  if (slash !== -1) {
+    const p = value.slice(slash + 1)
+    if (!/^\d{1,3}$/.test(p)) return false
+    prefix = Number(p)
+    value = value.slice(0, slash)
+  }
+  if (IPV4_RE.test(value)) return prefix === null || prefix <= 32
+  if (value.includes(":") && IPV6_RE.test(value))
+    return prefix === null || prefix <= 128
+  return false
 }
 
 function describeProxyRule(configJson: string): string {

@@ -69,6 +69,9 @@ function PasswordCard({ userName }: { userName: string }) {
       setPassword("")
       setCode("")
     },
+    // A 2FA-required response is expected on the first submit; the inline code
+    // field handles it, so don't show a scary "Action failed" toast.
+    suppressErrorToast: isTwoFactorRequired,
   })
 
   // The server asks for a 2FA code when the account has 2FA enabled.
@@ -142,10 +145,18 @@ function PasswordCard({ userName }: { userName: string }) {
               />
             </div>
           )}
-          <Button type="submit" disabled={!password || update.isPending}>
+          <Button
+            type="submit"
+            disabled={!password || update.isPending || (needsCode && !code.trim())}
+          >
             {update.isPending && <Spinner className="size-4" />}
             Update password
           </Button>
+          {needsCode && (
+            <p className="text-muted-foreground w-full text-xs">
+              Enter your authenticator code to confirm the change.
+            </p>
+          )}
         </form>
       </CardPanel>
     </Card>

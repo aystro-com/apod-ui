@@ -39,6 +39,8 @@ const CONFIG_FIELDS: Array<{ key: string; label: string; placeholder: string }> 
 
 // fieldError mirrors the server-side validation (engine.validateConfigValue) so
 // mistakes are caught before save. Returns a message, or null when valid.
+const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i
+
 function fieldError(key: string, value: string): string | null {
   const v = value.trim()
   switch (key) {
@@ -131,6 +133,12 @@ export function SettingsTab({ site }: { site: Site }) {
     successTitle: "Site cloned",
     onSuccess: () => setCloneTarget(""),
   })
+  // Validate the clone target client-side (mirrors create); it must be a valid
+  // domain and different from the source.
+  const cloneNormalized = cloneTarget.trim().toLowerCase()
+  const cloneInvalid =
+    cloneNormalized !== "" &&
+    (!DOMAIN_RE.test(cloneNormalized) || cloneNormalized === site.domain)
 
   const transfer = useAction({
     fn: (owner: string) => api.transferSite(site.domain, owner),
@@ -226,12 +234,17 @@ export function SettingsTab({ site }: { site: Site }) {
           />
           <Button
             variant="outline"
-            disabled={!cloneTarget.trim() || clone.isPending}
+            disabled={!cloneTarget.trim() || cloneInvalid || clone.isPending}
             onClick={() => clone.mutate()}
           >
             {clone.isPending ? <Spinner className="size-4" /> : <CopyIcon />}
             Clone
           </Button>
+          {cloneInvalid && (
+            <p className="text-destructive-foreground w-full text-xs">
+              Enter a valid target domain different from the current one.
+            </p>
+          )}
         </CardPanel>
       </Card>
 

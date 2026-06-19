@@ -106,10 +106,10 @@ export function OverviewTab({ site }: { site: Site }) {
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium text-sm">CPU</span>
                   <span className="text-muted-foreground text-sm tabular-nums">
-                    {monitor.data.cpu_percent.toFixed(1)}%
+                    {(monitor.data.cpu_percent ?? 0).toFixed(1)}%
                   </span>
                 </div>
-                <Progress value={Math.min(monitor.data.cpu_percent, 100)} />
+                <Progress value={Math.min(monitor.data.cpu_percent ?? 0, 100)} />
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-baseline justify-between">
@@ -120,7 +120,7 @@ export function OverviewTab({ site }: { site: Site }) {
                       ` / ${formatMB(monitor.data.memory_limit_mb)}`}
                   </span>
                 </div>
-                <Progress value={Math.min(monitor.data.memory_percent, 100)} />
+                <Progress value={Math.min(monitor.data.memory_percent ?? 0, 100)} />
               </div>
             </div>
           )}

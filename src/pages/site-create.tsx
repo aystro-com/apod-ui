@@ -77,7 +77,8 @@ export function SiteCreatePage() {
       streamRef.current = controller
       void api.streamDeployEvents(
         d,
-        (ev) => setDeployEvents((prev) => [...prev, ev]),
+        // Cap retained events so a long/chatty stream can't grow unbounded.
+        (ev) => setDeployEvents((prev) => [...prev, ev].slice(-500)),
         controller.signal,
       )
       return api.createSite({

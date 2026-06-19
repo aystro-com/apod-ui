@@ -10,6 +10,9 @@ export function useAction<TVariables = void, TData = unknown>(options: {
   invalidates?: Array<readonly unknown[]>
   successTitle?: string
   onSuccess?: (data: TData, vars: TVariables) => void
+  // Return true to suppress the default "Action failed" toast for this error
+  // (e.g. an expected 2FA-required response that the UI handles inline).
+  suppressErrorToast?: (err: unknown) => boolean
 }) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -24,6 +27,7 @@ export function useAction<TVariables = void, TData = unknown>(options: {
       options.onSuccess?.(data, vars)
     },
     onError: (err) => {
+      if (options.suppressErrorToast?.(err)) return
       toastManager.add({
         title: "Action failed",
         description: err instanceof Error ? err.message : undefined,

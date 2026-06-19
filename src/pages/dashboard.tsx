@@ -103,14 +103,14 @@ export function DashboardPage() {
           <StatCard
             icon={MemoryStickIcon}
             label="Memory"
-            value={`${stats.data.mem_percent.toFixed(0)}%`}
+            value={`${(stats.data.mem_percent ?? 0).toFixed(0)}%`}
             detail={`${formatMB(stats.data.mem_used_mb)} of ${formatMB(stats.data.mem_total_mb)} used`}
             percent={stats.data.mem_percent}
           />
           <StatCard
             icon={HardDriveIcon}
             label="Disk"
-            value={`${stats.data.disk_percent.toFixed(0)}%`}
+            value={`${(stats.data.disk_percent ?? 0).toFixed(0)}%`}
             detail={`${stats.data.disk_used_gb} GB of ${stats.data.disk_total_gb} GB used`}
             percent={stats.data.disk_percent}
           />
@@ -168,7 +168,7 @@ export function DashboardPage() {
                         <StatusBadge status={s.status} />
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {s.cpu_percent.toFixed(1)}%
+                        {(s.cpu_percent ?? 0).toFixed(1)}%
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMB(s.memory_mb)}
