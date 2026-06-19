@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeftIcon, RocketIcon } from "lucide-react"
@@ -63,6 +63,8 @@ export function SiteCreatePage() {
   const [validationError, setValidationError] = useState<string | null>(null)
   const [deployEvents, setDeployEvents] = useState<DeployEvent[]>([])
   const streamRef = useRef<AbortController | null>(null)
+  // Abort the SSE stream on unmount so it never leaks a browser connection.
+  useEffect(() => () => streamRef.current?.abort(), [])
 
   const create = useMutation({
     mutationFn: () => {

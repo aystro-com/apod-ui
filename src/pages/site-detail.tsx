@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { type ComponentType, useRef, useState } from "react"
+import { type ComponentType, useEffect, useRef, useState } from "react"
 import {
   ArrowLeftIcon,
   ArrowUpCircleIcon,
@@ -113,6 +113,10 @@ export function SiteDetailPage() {
   // Pull the latest image(s) and recreate containers, streaming live progress.
   const [updateEvents, setUpdateEvents] = useState<DeployEvent[]>([])
   const streamRef = useRef<AbortController | null>(null)
+  // Always abort the SSE stream on unmount — a leaked stream holds a browser
+  // connection (HTTP/1.1 allows only ~6 per host), which can stall later
+  // requests like the Sites list until it times out server-side.
+  useEffect(() => () => streamRef.current?.abort(), [])
   const update = useMutation({
     mutationFn: () => {
       setUpdateEvents([])
