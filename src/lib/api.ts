@@ -274,14 +274,10 @@ export interface TerminalToken {
   expires_at: string
 }
 
-// Site credentials returned by GET /sites/{domain}/info. `secrets` is a nested
-// map of generated credentials (DB creds, dashboard password, …).
-export interface SiteInfo {
-  domain: string
-  driver: string
-  url: string
-  secrets?: Record<string, string>
-}
+// GET /sites/{domain}/info returns a FLAT map: domain/driver/url plus each
+// generated credential (DB creds, dashboard password, anon/service keys, …) as
+// its own key. Flat (not a nested object) so every value renders as a string.
+export type SiteInfo = Record<string, string>
 
 export class ApiError extends Error {
   status: number

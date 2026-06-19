@@ -19,10 +19,8 @@ describe("OverviewTab", () => {
         domain: "example.com",
         driver: "laravel",
         url: "https://example.com",
-        secrets: {
-          db_name: "appdb",
-          db_password: "hunter2",
-        },
+        db_name: "appdb",
+        db_password: "hunter2",
       },
     })
     renderWithProviders(<OverviewTab site={makeSite()} />)

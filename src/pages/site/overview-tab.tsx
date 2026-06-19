@@ -130,20 +130,22 @@ export function OverviewTab({ site }: { site: Site }) {
               <code className="font-mono text-sm">{site.branch}</code>
             </div>
           )}
-          {info.data?.url && (
-            <div className="flex items-center justify-between gap-4 py-2">
-              <span className="font-medium text-muted-foreground text-sm">url</span>
-              <code className="truncate font-mono text-sm">{info.data.url}</code>
-            </div>
-          )}
-          {info.data?.secrets && Object.keys(info.data.secrets).length > 0 && (
-            <>
-              <Separator className="my-2" />
-              {Object.entries(info.data.secrets).map(([k, v]) => (
-                <InfoRow key={k} name={k} value={String(v)} />
-              ))}
-            </>
-          )}
+          {info.data &&
+            (() => {
+              // Flat map; domain/driver are already in the header, so show url +
+              // every credential as its own row.
+              const entries = Object.entries(info.data).filter(
+                ([k]) => k !== "domain" && k !== "driver",
+              )
+              return entries.length > 0 ? (
+                <>
+                  <Separator className="my-2" />
+                  {entries.map(([k, v]) => (
+                    <InfoRow key={k} name={k} value={String(v)} />
+                  ))}
+                </>
+              ) : null
+            })()}
           {info.isPending && <LoadingRows rows={2} />}
         </CardPanel>
       </Card>
