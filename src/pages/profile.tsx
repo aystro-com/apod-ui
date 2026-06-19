@@ -42,7 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useApi } from "@/lib/auth"
+import { isTwoFactorRequired, useApi } from "@/lib/auth"
 import { useAction } from "@/lib/use-action"
 import { formatDate } from "@/lib/format"
 import type { TokenAbility } from "@/lib/api"
@@ -56,14 +56,23 @@ const ALL_ABILITIES: { id: TokenAbility; label: string; hint: string }[] = [
 
 function PasswordCard({ userName }: { userName: string }) {
   const { api } = useApi()
+  const [currentPassword, setCurrentPassword] = useState("")
   const [password, setPassword] = useState("")
+  const [code, setCode] = useState("")
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const update = useAction({
-    fn: () => api.setUserPassword(userName, password),
+    fn: () => api.setUserPassword(userName, password, { currentPassword, code }),
     successTitle: "Password updated",
-    onSuccess: () => setPassword(""),
+    onSuccess: () => {
+      setCurrentPassword("")
+      setPassword("")
+      setCode("")
+    },
   })
+
+  // The server asks for a 2FA code when the account has 2FA enabled.
+  const needsCode = isTwoFactorRequired(update.error)
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -80,11 +89,26 @@ function PasswordCard({ userName }: { userName: string }) {
       <CardHeader>
         <CardTitle>Password</CardTitle>
         <CardDescription>
-          Change the password you use to sign in to this UI.
+          Change the password you use to sign in to this UI. Enter your current
+          password to confirm (leave blank if you haven&apos;t set one yet).
         </CardDescription>
       </CardHeader>
       <CardPanel>
         <form className="flex flex-wrap items-start gap-2" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="current-password" className="sr-only">
+              Current password
+            </Label>
+            <Input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Current password"
+              className="w-64"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="new-password" className="sr-only">
               New password
@@ -102,6 +126,22 @@ function PasswordCard({ userName }: { userName: string }) {
               <p className="text-destructive-foreground text-xs">{validationError}</p>
             )}
           </div>
+          {needsCode && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="password-2fa" className="sr-only">
+                Authentication code
+              </Label>
+              <Input
+                id="password-2fa"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="2FA code"
+                className="w-32"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </div>
+          )}
           <Button type="submit" disabled={!password || update.isPending}>
             {update.isPending && <Spinner className="size-4" />}
             Update password

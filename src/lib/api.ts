@@ -340,6 +340,33 @@ export interface DeployEvent {
   time: string
 }
 
+/** Max bytes the SSE parser will hold without a frame delimiter before bailing. */
+const MAX_SSE_BUFFER = 256 * 1024
+
+/**
+ * Coerce an untrusted parsed SSE payload into a well-formed DeployEvent, or
+ * null if it can't be. The server is trusted, but protocol drift / a malformed
+ * frame (e.g. a missing or non-numeric `percent`) would otherwise produce a
+ * NaN progress bar or a blank checklist row downstream.
+ */
+function normalizeDeployEvent(raw: unknown): DeployEvent | null {
+  if (typeof raw !== "object" || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const status =
+    r.status === "done" || r.status === "error" ? r.status : "running"
+  const percentNum = Number(r.percent)
+  const percent = Number.isFinite(percentNum)
+    ? Math.min(100, Math.max(0, percentNum))
+    : 0
+  return {
+    step: typeof r.step === "string" && r.step ? r.step : "Working…",
+    status,
+    detail: typeof r.detail === "string" ? r.detail : undefined,
+    percent,
+    time: typeof r.time === "string" ? r.time : "",
+  }
+}
+
 export class ApiClient {
   private baseUrl: string
   private apiKey: string
@@ -466,6 +493,12 @@ export class ApiClient {
         const { done, value } = await reader.read()
         if (done) break
         buf += decoder.decode(value, { stream: true })
+        // Guard against a server that never sends a frame delimiter: drop the
+        // buffer rather than letting it grow without bound (tab OOM).
+        if (buf.length > MAX_SSE_BUFFER) {
+          buf = ""
+          continue
+        }
         const frames = buf.split("\n\n")
         buf = frames.pop() ?? ""
         for (const frame of frames) {
@@ -474,7 +507,8 @@ export class ApiClient {
             .find((l) => l.startsWith("data: "))
           if (!data) continue
           try {
-            onEvent(JSON.parse(data.slice(6)) as DeployEvent)
+            const ev = normalizeDeployEvent(JSON.parse(data.slice(6)))
+            if (ev) onEvent(ev)
           } catch {
             /* ignore malformed frame */
           }
@@ -482,6 +516,8 @@ export class ApiClient {
       }
     } catch {
       /* aborted mid-stream */
+    } finally {
+      reader.releaseLock()
     }
   }
   startSite = (domain: string) => this.post<unknown>(this.sitePath(domain, "/start"))
@@ -700,9 +736,15 @@ export class ApiClient {
     })
   me = () => this.get<Identity>("/api/v1/auth/me")
   logout = () => this.post<unknown>("/api/v1/auth/logout")
-  setUserPassword = (name: string, password: string) =>
+  setUserPassword = (
+    name: string,
+    password: string,
+    opts: { currentPassword?: string; code?: string } = {},
+  ) =>
     this.post<unknown>(`/api/v1/users/${encodeURIComponent(name)}/password`, {
       password,
+      current_password: opts.currentPassword,
+      code: opts.code,
     })
 
   // Two-factor auth (self-service)

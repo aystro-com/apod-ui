@@ -50,6 +50,26 @@ describe("useSiteEventStream", () => {
     expect(result.current[1].status).toBe("done")
   })
 
+  it("normalizes malformed events (missing step / non-numeric percent)", async () => {
+    seedSession("admin")
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        // step missing; percent is a non-numeric string → would be NaN downstream.
+        sseResponse([{ status: "running", percent: "oops" }]),
+      ),
+    )
+
+    const { result } = renderHook(() => useSiteEventStream("ex.com", true), {
+      wrapper,
+    })
+
+    await waitFor(() => expect(result.current).toHaveLength(1))
+    expect(result.current[0].percent).toBe(0)
+    expect(result.current[0].step).toBeTruthy()
+    expect(Number.isFinite(result.current[0].percent)).toBe(true)
+  })
+
   it("does not open a stream while inactive", () => {
     seedSession("admin")
     const fetchSpy = vi.fn(async () => sseResponse([]))

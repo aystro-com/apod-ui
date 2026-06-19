@@ -20,13 +20,20 @@ describe("ProfilePage — password", () => {
     renderWithProviders(<ProfilePage />, { role: "user" })
     const user = userEvent.setup()
     await user.type(
+      await screen.findByLabelText(/current password/i),
+      "the-old-password",
+    )
+    await user.type(
       await screen.findByLabelText(/new password/i),
       "a-brand-new-password",
     )
     await user.click(screen.getByRole("button", { name: /update password/i }))
     await waitFor(() => {
       const call = calls.find((c) => c.path === "/api/v1/users/alice/password")
-      expect(call?.body).toEqual({ password: "a-brand-new-password" })
+      expect(call?.body).toMatchObject({
+        password: "a-brand-new-password",
+        current_password: "the-old-password",
+      })
     })
   })
 
