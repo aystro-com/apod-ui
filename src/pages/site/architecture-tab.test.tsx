@@ -30,6 +30,33 @@ describe("ArchitectureTab", () => {
     expect(screen.getByText("2/2 up")).toBeInTheDocument()
   })
 
+  it("shows container private IPs", async () => {
+    setup()
+    renderWithProviders(<ArchitectureTab site={site} />)
+    expect(await screen.findByText("172.20.0.2")).toBeInTheDocument()
+    expect(screen.getByText("172.20.0.6")).toBeInTheDocument()
+  })
+
+  it("renders shared-network neighbors when the site is linked", async () => {
+    setup({
+      "GET /api/v1/sites/example.com/network": [
+        {
+          network: "analytics",
+          site: "erp.example.com",
+          service: "db",
+          name: "apod-erp.example.com-db",
+          ip: "172.30.0.4",
+          running: true,
+        },
+      ],
+    })
+    renderWithProviders(<ArchitectureTab site={site} />)
+    expect(await screen.findByText("Shared networks")).toBeInTheDocument()
+    expect(screen.getByText("analytics")).toBeInTheDocument()
+    expect(screen.getByText("erp.example.com")).toBeInTheDocument()
+    expect(screen.getByText("172.30.0.4")).toBeInTheDocument()
+  })
+
   it("frames the site as one isolated unit", async () => {
     setup()
     renderWithProviders(<ArchitectureTab site={site} />)

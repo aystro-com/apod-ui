@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/app-layout"
 import { useAuth } from "@/lib/auth"
 import { ActivityPage } from "@/pages/activity"
 import { DashboardPage } from "@/pages/dashboard"
+import { NetworksPage } from "@/pages/networks"
 import { SiteCreatePage } from "@/pages/site-create"
 import { SiteDetailPage } from "@/pages/site-detail"
 import { ProfilePage } from "@/pages/profile"
@@ -73,6 +74,12 @@ const storageRoute = createRoute({
   component: StoragePage,
 })
 
+const networksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/networks",
+  component: NetworksPage,
+})
+
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/profile",
@@ -107,6 +114,7 @@ const routeTree = rootRoute.addChildren([
   siteDetailTabRoute,
   activityRoute,
   storageRoute,
+  networksRoute,
   profileRoute,
   usersRoute,
   systemRoute,

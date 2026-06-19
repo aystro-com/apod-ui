@@ -67,6 +67,22 @@ export interface ContainerRef {
   ip: string
 }
 
+export interface SharedNetwork {
+  name: string
+  owner: string
+  members: string[]
+}
+
+// One container reachable over a shared network (architecture neighbor view).
+export interface NetworkNeighbor {
+  network: string
+  site: string
+  service: string
+  name: string
+  ip: string
+  running: boolean
+}
+
 export interface ProcessInfo {
   service: string
   role: string
@@ -533,6 +549,24 @@ export class ApiClient {
     })
   deleteBackup = (domain: string, backupId: number) =>
     this.delete<unknown>(this.sitePath(domain, "/backups"), { backup_id: backupId })
+
+  // Shared networks (connect sites privately)
+  listNetworks = () => this.get<SharedNetwork[]>("/api/v1/networks")
+  createNetwork = (name: string) =>
+    this.post<unknown>("/api/v1/networks", { name })
+  deleteNetwork = (name: string) =>
+    this.delete<unknown>(`/api/v1/networks/${encodeURIComponent(name)}`)
+  addNetworkMember = (name: string, domain: string) =>
+    this.post<unknown>(
+      `/api/v1/networks/${encodeURIComponent(name)}/members`,
+      { domain },
+    )
+  removeNetworkMember = (name: string, domain: string) =>
+    this.delete<unknown>(
+      `/api/v1/networks/${encodeURIComponent(name)}/members/${encodeURIComponent(domain)}`,
+    )
+  getSiteNetwork = (domain: string) =>
+    this.get<NetworkNeighbor[]>(this.sitePath(domain, "/network"))
 
   // Processes (web / workers / scheduler)
   listProcesses = (domain: string) =>

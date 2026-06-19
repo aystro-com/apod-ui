@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
+  BoxIcon,
   ClockIcon,
   CpuIcon,
   DatabaseIcon,
   GlobeIcon,
+  LinkIcon,
   MinusIcon,
   NetworkIcon,
   PlusIcon,
@@ -26,7 +28,7 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { useApi } from "@/lib/auth"
 import { useAction } from "@/lib/use-action"
-import type { ProcessInfo, Site } from "@/lib/api"
+import type { NetworkNeighbor, ProcessInfo, Site } from "@/lib/api"
 
 const MAX_REPLICAS = 20
 
@@ -211,9 +213,22 @@ export function ArchitectureTab({ site }: { site: Site }) {
     queryKey: ["processes", site.domain],
     queryFn: () => api.listProcesses(site.domain),
   })
+  // Neighbors this site can reach over shared networks (deliberate links).
+  const neighbors = useQuery({
+    queryKey: ["site-network", site.domain],
+    queryFn: () => api.getSiteNetwork(site.domain),
+  })
 
   if (procs.isPending) return <LoadingRows rows={3} />
   if (procs.isError) return <ErrorState error={procs.error} />
+
+  // Group reachable neighbor containers by the shared network they're on.
+  const byNetwork = new Map<string, NetworkNeighbor[]>()
+  for (const n of neighbors.data ?? []) {
+    const list = byNetwork.get(n.network) ?? []
+    list.push(n)
+    byNetwork.set(n.network, list)
+  }
 
   const all = procs.data ?? []
   // Group by role, but only keep groups that actually have containers — sites
@@ -290,12 +305,79 @@ export function ArchitectureTab({ site }: { site: Site }) {
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-muted-foreground text-xs">
             <ShieldCheckIcon className="size-3.5 text-emerald-600" />
-            These containers share one private network. No other site can reach
-            them.
+            {byNetwork.size === 0
+              ? "These containers share one private network. No other site can reach them."
+              : "Isolated by default — except the shared networks below, which this site is deliberately joined to."}
           </p>
         </CardPanel>
       </Card>
+
+      {byNetwork.size > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LinkIcon className="size-4 text-muted-foreground" />
+              Shared networks
+            </CardTitle>
+            <CardDescription>
+              Containers from other sites that {site.domain} can reach privately,
+              by name or by the IP shown.
+            </CardDescription>
+          </CardHeader>
+          <CardPanel className="flex flex-col gap-5">
+            {[...byNetwork.entries()].map(([network, items]) => (
+              <div
+                key={network}
+                className="overflow-hidden rounded-xl border-2 border-dashed border-sky-500/40"
+              >
+                <div className="flex items-center gap-2 border-b bg-sky-500/5 px-4 py-2 font-medium text-sm">
+                  <NetworkIcon className="size-4 text-sky-600" />
+                  {network}
+                  <code className="rounded bg-background px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    apod-net-{network}
+                  </code>
+                </div>
+                <div className="flex flex-wrap items-start gap-3 p-4">
+                  {items.map((n) => (
+                    <NeighborNode key={n.name} neighbor={n} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardPanel>
+        </Card>
+      )}
     </div>
+  )
+}
+
+/** A read-only node for a reachable container on another site. */
+function NeighborNode({ neighbor }: { neighbor: NetworkNeighbor }) {
+  return (
+    <Card className="w-60 gap-0 overflow-hidden rounded-xl bg-muted/30">
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <span className="flex items-center gap-2 truncate font-medium text-sm">
+          <BoxIcon className="size-4 text-muted-foreground" />
+          {neighbor.service || "container"}
+        </span>
+        <span
+          className={`size-2 shrink-0 rounded-full ${neighbor.running ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+          title={neighbor.running ? "running" : "stopped"}
+        />
+      </div>
+      <div className="flex flex-col gap-1 px-3 py-2 text-xs">
+        <span className="truncate text-muted-foreground">{neighbor.site}</span>
+        <code className="truncate font-mono text-[11px] text-muted-foreground">
+          {neighbor.name}
+        </code>
+        {neighbor.ip && (
+          <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/70">
+            <NetworkIcon className="size-2.5" />
+            {neighbor.ip}
+          </span>
+        )}
+      </div>
+    </Card>
   )
 }
 

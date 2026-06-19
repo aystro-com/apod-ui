@@ -6,6 +6,7 @@ import {
   GlobeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  NetworkIcon,
   UserCogIcon,
   MoonIcon,
   ServerCogIcon,
@@ -40,6 +41,7 @@ import { useAuth } from "@/lib/auth"
 const NAV_MAIN = [
   { to: "/", label: "Dashboard", icon: LayoutDashboardIcon },
   { to: "/sites", label: "Sites", icon: GlobeIcon },
+  { to: "/networks", label: "Networks", icon: NetworkIcon },
   { to: "/activity", label: "Activity", icon: ActivityIcon },
   { to: "/storage", label: "Backup Storage", icon: DatabaseIcon },
 ]
