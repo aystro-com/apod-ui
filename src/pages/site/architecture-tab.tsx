@@ -311,9 +311,11 @@ export function ArchitectureTab({ site }: { site: Site }) {
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-muted-foreground text-xs">
             <ShieldCheckIcon className="size-3.5 text-emerald-600" />
-            {byNetwork.size === 0
-              ? "These containers share one private network. No other site can reach them."
-              : "Isolated by default — except the shared networks below, which this site is deliberately joined to."}
+            {neighbors.isError
+              ? "These containers share one private network. Couldn't load shared-network reachability."
+              : byNetwork.size === 0
+                ? "These containers share one private network. No other site can reach them."
+                : "Isolated by default — except the shared networks below, which this site is deliberately joined to."}
           </p>
         </CardPanel>
       </Card>

@@ -170,6 +170,7 @@ export function OverviewTab({ site }: { site: Site }) {
               ) : null
             })()}
           {info.isPending && <LoadingRows rows={2} />}
+          {info.isError && <ErrorState error={info.error} />}
         </CardPanel>
       </Card>
     </div>

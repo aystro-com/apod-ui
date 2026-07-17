@@ -360,7 +360,10 @@ function NewSiteFromBackupDialog({
   const [error, setError] = useState<string | null>(null)
 
   const create = useAction({
-    fn: () => api.newSiteFromBackup(sourceDomain, backupId, newDomain.trim()),
+    // Normalize like every other domain form (create/clone/alias) so a mixed-
+    // case entry is stored consistently and can't slip past the same-site guard.
+    fn: () =>
+      api.newSiteFromBackup(sourceDomain, backupId, newDomain.trim().toLowerCase()),
     invalidates: [["sites"]],
     successTitle: "Site created from backup",
     onSuccess: () => {
@@ -373,12 +376,12 @@ function NewSiteFromBackupDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    const d = newDomain.trim()
+    const d = newDomain.trim().toLowerCase()
     if (!DOMAIN_RE.test(d)) {
       setError("Enter a valid domain, e.g. staging.example.com.")
       return
     }
-    if (d === sourceDomain) {
+    if (d === sourceDomain.toLowerCase()) {
       setError("The new domain must differ from the source site.")
       return
     }

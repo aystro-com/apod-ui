@@ -198,6 +198,7 @@ export function SystemPage() {
             </CardHeader>
             <CardPanel className="flex flex-col gap-3">
               {version.isPending && <LoadingRows rows={1} />}
+              {version.isError && <ErrorState error={version.error} />}
               {version.data && (
                 <p className="text-sm">
                   apod{" "}
@@ -425,6 +426,7 @@ export function SystemPage() {
             </CardHeader>
             <CardPanel>
               {diskUsage.isPending && <LoadingRows rows={2} />}
+              {diskUsage.isError && <ErrorState error={diskUsage.error} />}
               {diskUsage.data &&
                 (diskUsage.data.length === 0 ? (
                   <EmptyState title="No sites" />
@@ -671,6 +673,7 @@ export function SystemPage() {
               </form>
 
               {sshKeys.isPending && <LoadingRows rows={1} />}
+              {sshKeys.isError && <ErrorState error={sshKeys.error} />}
               {sshKeys.data &&
                 (sshKeys.data.length === 0 ? (
                   <p className="text-muted-foreground text-sm">No keys added.</p>

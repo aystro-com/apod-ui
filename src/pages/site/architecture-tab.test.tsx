@@ -58,7 +58,10 @@ describe("ArchitectureTab", () => {
   })
 
   it("frames the site as one isolated unit", async () => {
-    setup()
+    // An isolated site's network endpoint returns an empty neighbor list (not
+    // an error) — mock it so the isolation copy, not the load-failure copy,
+    // renders.
+    setup({ "GET /api/v1/sites/example.com/network": [] })
     renderWithProviders(<ArchitectureTab site={site} />)
     expect(await screen.findByText("apod-site-example-com")).toBeInTheDocument()
     expect(screen.getByText(/no other site can reach them/i)).toBeInTheDocument()

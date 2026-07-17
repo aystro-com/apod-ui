@@ -117,6 +117,7 @@ export function DashboardPage() {
         </div>
       )}
       {isAdmin && stats.isPending && <LoadingRows rows={2} />}
+      {isAdmin && stats.isError && <ErrorState error={stats.error} />}
 
       <Card>
         <CardHeader>

@@ -220,7 +220,11 @@ function NetworkCard({ net }: { net: SharedNetwork }) {
             <SelectPopup>
               {candidates.length === 0 ? (
                 <SelectItem value="" disabled>
-                  No more sites
+                  {sites.isError
+                    ? "Couldn't load sites"
+                    : sites.isPending
+                      ? "Loading sites…"
+                      : "No more sites"}
                 </SelectItem>
               ) : (
                 candidates.map((d) => (

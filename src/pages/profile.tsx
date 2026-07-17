@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { CopyButton } from "@/components/copy-button"
-import { EmptyState, LoadingRows } from "@/components/data-state"
+import { EmptyState, ErrorState, LoadingRows } from "@/components/data-state"
 import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -76,6 +76,10 @@ function PasswordCard({ userName }: { userName: string }) {
 
   // The server asks for a 2FA code when the account has 2FA enabled.
   const needsCode = isTwoFactorRequired(update.error)
+  // If we already sent a code and the server STILL demands one, that code was
+  // wrong/expired. Without this the suppressed toast leaves no feedback at all.
+  const codeRejected =
+    needsCode && code.trim() !== "" && update.isError && !update.isPending
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -153,8 +157,16 @@ function PasswordCard({ userName }: { userName: string }) {
             Update password
           </Button>
           {needsCode && (
-            <p className="text-muted-foreground w-full text-xs">
-              Enter your authenticator code to confirm the change.
+            <p
+              className={
+                codeRejected
+                  ? "text-destructive-foreground w-full text-xs"
+                  : "text-muted-foreground w-full text-xs"
+              }
+            >
+              {codeRejected
+                ? "Invalid or expired authentication code. Try again."
+                : "Enter your authenticator code to confirm the change."}
             </p>
           )}
         </form>
@@ -466,6 +478,7 @@ function TokensCard() {
         </form>
 
         {tokens.isPending && <LoadingRows rows={2} />}
+        {tokens.isError && <ErrorState error={tokens.error} />}
         {tokens.data &&
           (list.length === 0 ? (
             <EmptyState title="No tokens" description="Create a scoped token above." />
@@ -538,6 +551,7 @@ export function ProfilePage() {
         description="Manage your password, two-factor authentication, and API tokens."
       />
       {me.isPending && <LoadingRows rows={4} />}
+      {me.isError && <ErrorState error={me.error} />}
       {me.data && (
         <>
           {userName && <PasswordCard userName={userName} />}

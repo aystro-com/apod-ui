@@ -296,7 +296,11 @@ export function SiteDetailPage() {
         </TabsList>
       </Tabs>
 
-      <ActiveTab site={s} />
+      {/* Key by domain so switching sites (via URL/history, which doesn't
+          remount the route) resets tab-local state — a stale console token,
+          unsaved settings edits, or a revealed secret must never carry from
+          one site to another. */}
+      <ActiveTab key={s.domain} site={s} />
     </>
   )
 }

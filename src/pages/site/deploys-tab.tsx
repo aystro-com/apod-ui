@@ -127,6 +127,7 @@ export function DeploysTab({ site }: { site: Site }) {
         </CardHeader>
         <CardPanel className="flex flex-col gap-3">
           {webhooks.isPending && <LoadingRows rows={1} />}
+          {webhooks.isError && <ErrorState error={webhooks.error} />}
           {webhooks.data && webhooks.data.length === 0 && (
             <Button
               variant="outline"

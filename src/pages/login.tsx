@@ -43,13 +43,21 @@ export function LoginPage() {
             code: code.trim() || undefined,
           }
         : { kind: "key", apiKey }
+    const submittedCode = mode === "password" && code.trim() !== ""
     try {
       await connect(baseUrl, credentials, remember)
     } catch (err) {
       if (isTwoFactorRequired(err)) {
         // Password was correct; prompt for the second factor and stay put.
+        // But if we already sent a code and the server still demands one, that
+        // code was wrong/expired — say so instead of clearing the error and
+        // giving no feedback at all.
         setNeedsCode(true)
-        setError(null)
+        setError(
+          submittedCode
+            ? "Invalid or expired authentication code. Try again."
+            : null,
+        )
       } else {
         setError(err instanceof Error ? err.message : "Sign-in failed.")
       }
