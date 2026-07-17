@@ -512,6 +512,9 @@ export class ApiClient {
         return // aborted or network gone — nothing to stream
       }
       if (res.status !== 404) break
+      // Drain the discarded 404 body so it doesn't pin one of the browser's
+      // ~6 per-host connections while we retry.
+      void res.body?.cancel().catch(() => {})
       await new Promise((r) => setTimeout(r, 500)) // record not created yet
     }
     if (!res || !res.ok || !res.body) return

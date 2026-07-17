@@ -25,15 +25,27 @@ export function useSiteEventStream(
   useEffect(() => {
     if (!active || !domain) return
     const controller = new AbortController()
-    void api.streamDeployEvents(
-      domain,
-      // Cap the retained events so a long-running or misbehaving server stream
-      // can't grow this array (and its O(n) re-render cost) without bound, and
-      // drop a prior operation's replayed events when a new run begins.
-      (ev) =>
-        setEvents((prev) => appendDeployEvent(prev, ev, MAX_STREAM_EVENTS)),
-      controller.signal,
-    )
+    const subscribe = async () => {
+      while (!controller.signal.aborted) {
+        await api.streamDeployEvents(
+          domain,
+          // Cap the retained events so a long-running or misbehaving server
+          // stream can't grow this array (and its O(n) re-render cost) without
+          // bound, and drop a prior operation's replayed events when a new run
+          // begins.
+          (ev) =>
+            setEvents((prev) => appendDeployEvent(prev, ev, MAX_STREAM_EVENTS)),
+          controller.signal,
+        )
+        if (controller.signal.aborted) break
+        // The stream ended while the operation is still marked active — e.g. a
+        // reverse-proxy idle timeout mid image pull. Resubscribe after a short
+        // pause instead of freezing the progress panel; replayed events for the
+        // same run collapse per-step, so a reconnect never duplicates rows.
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    }
+    void subscribe()
     // Reset on teardown (deactivation / domain change / unmount) so the next
     // active period starts from an empty list rather than a prior operation's
     // steps.
