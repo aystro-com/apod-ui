@@ -159,7 +159,9 @@ export function UptimeTab({ site }: { site: Site }) {
     )
   }
 
-  const s = status.data
+  const check = status.data.check
+  const stats = status.data.stats
+  const hasChecks = stats.total_checks > 0
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -167,12 +169,12 @@ export function UptimeTab({ site }: { site: Site }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Uptime monitoring
-            <StatusBadge status={s.active ? "up" : "stopped"} />
+            <StatusBadge status={check.active ? "up" : "stopped"} />
           </CardTitle>
           <CardDescription>
-            Checking <code className="font-mono text-xs">{s.url}</code> every{" "}
-            {s.interval_seconds}s
-            {s.alert_webhook && (
+            Checking <code className="font-mono text-xs">{check.url}</code> every{" "}
+            {check.interval_seconds}s
+            {check.alert_webhook && (
               <span className="ms-2 inline-flex items-center gap-1">
                 <BellIcon className="size-3" /> webhook alerts on
               </span>
@@ -184,18 +186,18 @@ export function UptimeTab({ site }: { site: Site }) {
             <div>
               <p className="text-muted-foreground text-xs">Uptime</p>
               <p className="font-semibold text-2xl tabular-nums">
-                {s.uptime_percent != null ? `${s.uptime_percent.toFixed(2)}%` : "—"}
+                {hasChecks ? `${stats.uptime_percent.toFixed(2)}%` : "—"}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Avg response</p>
               <p className="font-semibold text-2xl tabular-nums">
-                {s.avg_response_ms != null ? `${s.avg_response_ms} ms` : "—"}
+                {hasChecks ? `${stats.avg_response_ms} ms` : "—"}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Total checks</p>
-              <p className="font-semibold text-2xl tabular-nums">{s.total_checks}</p>
+              <p className="font-semibold text-2xl tabular-nums">{stats.total_checks}</p>
             </div>
           </div>
           <ConfirmDialog
@@ -236,14 +238,14 @@ export function UptimeTab({ site }: { site: Site }) {
                   {logs.data.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>
-                        <StatusBadge status={c.status} />
+                        <StatusBadge status={c.is_up ? "up" : "down"} />
                       </TableCell>
                       <TableCell className="tabular-nums">
                         {c.status_code || "—"}
                       </TableCell>
                       <TableCell className="tabular-nums">{c.response_ms} ms</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(c.created_at)}
+                        {formatDate(c.checked_at)}
                       </TableCell>
                     </TableRow>
                   ))}

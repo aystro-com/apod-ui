@@ -152,7 +152,8 @@ export function UsersPage() {
     invalidates: [["users"]],
     onSuccess: (created) => {
       setName("")
-      if (created.api_key) setFreshKey({ user: created.name, key: created.api_key })
+      if (created.api_key)
+        setFreshKey({ user: created.user.name, key: created.api_key })
     },
   })
   const resetKey = useAction({

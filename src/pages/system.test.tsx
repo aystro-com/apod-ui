@@ -12,7 +12,7 @@ function setup(extra: Record<string, unknown> = {}) {
       { name: "php", description: "PHP + Nginx + MySQL" },
       { name: "node", description: "Node.js + PostgreSQL" },
     ],
-    "GET /api/v1/firewall": { enabled: true, rules: ["80/tcp ALLOW", "443/tcp ALLOW"] },
+    "GET /api/v1/firewall": { active: true, rules: ["80/tcp ALLOW", "443/tcp ALLOW"] },
     "GET /api/v1/firewall/rules": [
       { num: 1, to: "80/tcp", action: "ALLOW", from: "Anywhere" },
       { num: 2, to: "443/tcp", action: "ALLOW", from: "Anywhere" },

@@ -468,7 +468,7 @@ export function SystemPage() {
               {firewall.isError && <ErrorState error={firewall.error} />}
               {firewall.data && (
                 <>
-                  {!firewall.data.enabled && (
+                  {!firewall.data.active && (
                     <div className="flex items-center gap-3">
                       <Badge variant="outline">disabled</Badge>
                       <ConfirmDialog

@@ -33,25 +33,30 @@ describe("UptimeTab", () => {
   it("shows stats and recent checks when configured", async () => {
     mockApi({
       "GET /api/v1/sites/example.com/uptime": {
-        id: 1,
-        site_domain: "example.com",
-        url: "https://example.com",
-        interval_seconds: 60,
-        alert_webhook: "",
-        active: true,
-        created_at: "2026-01-01T00:00:00Z",
-        uptime_percent: 99.95,
-        avg_response_ms: 123,
-        total_checks: 1000,
+        check: {
+          id: 1,
+          site_domain: "example.com",
+          url: "https://example.com",
+          interval_seconds: 60,
+          alert_webhook: "",
+          active: true,
+          created_at: "2026-01-01T00:00:00Z",
+        },
+        stats: {
+          uptime_percent: 99.95,
+          avg_response_ms: 123,
+          total_checks: 1000,
+          total_downtime: 0,
+        },
       },
       "GET /api/v1/sites/example.com/uptime/logs": [
         {
           id: 1,
           site_domain: "example.com",
-          status: "up",
+          is_up: true,
           status_code: 200,
           response_ms: 100,
-          created_at: "2026-01-01T00:00:00Z",
+          checked_at: "2026-01-01T00:00:00Z",
         },
       ],
     })

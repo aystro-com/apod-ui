@@ -29,12 +29,14 @@ describe("UsersPage", () => {
     mockApi({
       "GET /api/v1/users": users,
       "POST /api/v1/users": {
-        id: 2,
-        name: "client2",
-        uid: 5002,
-        role: "user",
+        user: {
+          id: 2,
+          name: "client2",
+          uid: 5002,
+          role: "user",
+          created_at: "2026-01-01T00:00:00Z",
+        },
         api_key: "apod_newkey_once",
-        created_at: "2026-01-01T00:00:00Z",
       },
     })
     renderWithProviders(<UsersPage />)
@@ -50,12 +52,7 @@ describe("UsersPage", () => {
     const { calls } = mockApi({
       "GET /api/v1/users": users,
       "POST /api/v1/users/client1/reset-key": {
-        id: 1,
-        name: "client1",
-        uid: 5001,
-        role: "user",
         api_key: "apod_rotated",
-        created_at: "2026-01-01T00:00:00Z",
       },
     })
     renderWithProviders(<UsersPage />)

@@ -218,20 +218,27 @@ export interface UptimeConfig {
   created_at: string
 }
 
-export interface UptimeStatus extends UptimeConfig {
-  // Absent until the first check has run.
-  uptime_percent?: number
-  avg_response_ms?: number
+export interface UptimeStats {
+  // uptime_percent/avg_response_ms are 0 until the first check has run.
+  uptime_percent: number
+  avg_response_ms: number
   total_checks: number
+  total_downtime: number
+}
+
+/** GET /uptime returns the check config and its rolling stats as separate objects. */
+export interface UptimeStatus {
+  check: UptimeConfig
+  stats: UptimeStats
 }
 
 export interface UptimeCheck {
   id: number
   site_domain: string
-  status: string
+  is_up: boolean
   status_code: number
   response_ms: number
-  created_at: string
+  checked_at: string
 }
 
 export interface Webhook {
@@ -293,9 +300,8 @@ export interface UpdateCheck {
 }
 
 export interface FirewallStatus {
-  enabled: boolean
+  active: boolean
   rules?: string[]
-  status?: string
 }
 
 export interface TerminalToken {
@@ -815,12 +821,12 @@ export class ApiClient {
 
   // Users (admin)
   createUser = (name: string, role: string) =>
-    this.post<ApodUser>("/api/v1/users", { name, role })
+    this.post<{ user: ApodUser; api_key: string }>("/api/v1/users", { name, role })
   listUsers = () => this.get<ApodUser[]>("/api/v1/users")
   deleteUser = (name: string) =>
     this.delete<unknown>(`/api/v1/users/${encodeURIComponent(name)}`)
   resetUserKey = (name: string) =>
-    this.post<ApodUser>(`/api/v1/users/${encodeURIComponent(name)}/reset-key`)
+    this.post<{ api_key: string }>(`/api/v1/users/${encodeURIComponent(name)}/reset-key`)
   setUserCanCreateSites = (name: string, canCreateSites: boolean) =>
     this.post<unknown>(
       `/api/v1/users/${encodeURIComponent(name)}/permissions`,
