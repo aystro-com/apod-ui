@@ -45,10 +45,14 @@ describe("SiteDetailPage", () => {
     })
     renderDetail()
     const user = userEvent.setup()
+    // Wait for the loaded controls before asserting Start is absent — checking
+    // before the site query resolves would pass even if a Start button later
+    // appeared (no buttons exist yet at that point).
+    const restart = await screen.findByRole("button", { name: /restart/i })
     expect(
       screen.queryByRole("button", { name: /^start$/i }),
     ).not.toBeInTheDocument()
-    await user.click(await screen.findByRole("button", { name: /restart/i }))
+    await user.click(restart)
     await waitFor(() => {
       expect(
         calls.some((c) => c.path === "/api/v1/sites/example.com/restart"),

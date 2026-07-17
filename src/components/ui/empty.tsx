@@ -56,11 +56,13 @@ export function EmptyMedia({
 }: React.ComponentProps<"div"> &
   VariantProps<typeof emptyMediaVariants>): React.ReactElement {
   return (
+    // Only the inner content div receives {...props}: spreading it on the
+    // wrapper too duplicated any id and double-fired click/aria handlers (once
+    // on the inner div, again as it bubbled to the wrapper).
     <div
       className={cn("relative mb-6", className)}
       data-slot="empty-media"
       data-variant={variant}
-      {...props}
     >
       {variant === "icon" && (
         <>
