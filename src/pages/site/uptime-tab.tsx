@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ActivityIcon, BellIcon } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
-import { EmptyState, LoadingRows } from "@/components/data-state"
+import { EmptyState, ErrorState, LoadingRows } from "@/components/data-state"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -84,6 +84,11 @@ export function UptimeTab({ site }: { site: Site }) {
   }
 
   if (status.isPending) return <LoadingRows rows={3} />
+
+  // A non-404 failure means the status genuinely couldn't be loaded — show the
+  // error rather than falling through to the "Enable monitoring" form, which
+  // would misrepresent an already-configured site as unconfigured.
+  if (status.isError && !notConfigured) return <ErrorState error={status.error} />
 
   if (notConfigured || !status.data) {
     return (
@@ -213,6 +218,7 @@ export function UptimeTab({ site }: { site: Site }) {
         </CardHeader>
         <CardPanel>
           {logs.isPending && <LoadingRows rows={3} />}
+          {logs.isError && <ErrorState error={logs.error} />}
           {logs.data &&
             (logs.data.length === 0 ? (
               <EmptyState title="No checks yet" />

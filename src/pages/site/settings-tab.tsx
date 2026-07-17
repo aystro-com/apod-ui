@@ -44,8 +44,15 @@ const DOMAIN_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,
 function fieldError(key: string, value: string): string | null {
   const v = value.trim()
   switch (key) {
-    case "ram":
     case "storage":
+      // Empty = unlimited (same as site creation allows), so clearing an
+      // existing quota must be permitted — the ram-style "required" rule made
+      // that impossible.
+      if (v === "") return null
+      return /^\d+[MG]$/i.test(v)
+        ? null
+        : "Use an integer followed by M or G (e.g. 512M, 2G), or leave blank for unlimited."
+    case "ram":
       if (v === "") return "Required — an integer + M or G (e.g. 512M, 2G)."
       return /^\d+[MG]$/i.test(v)
         ? null

@@ -287,6 +287,7 @@ export function BackupsTab({ site }: { site: Site }) {
           </div>
 
           {schedules.isPending && <LoadingRows rows={1} />}
+          {schedules.isError && <ErrorState error={schedules.error} />}
           {schedules.data &&
             (schedules.data.length === 0 ? (
               <p className="text-muted-foreground text-sm">

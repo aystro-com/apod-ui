@@ -64,8 +64,16 @@ export function SiteCreatePage() {
   const [validationError, setValidationError] = useState<string | null>(null)
   const [deployEvents, setDeployEvents] = useState<DeployEvent[]>([])
   const streamRef = useRef<AbortController | null>(null)
-  // Abort the SSE stream on unmount so it never leaks a browser connection.
-  useEffect(() => () => streamRef.current?.abort(), [])
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Abort the SSE stream and cancel the pending post-success navigate on unmount,
+  // so neither leaks (a stray timer would yank a user who left the page).
+  useEffect(
+    () => () => {
+      streamRef.current?.abort()
+      if (navTimerRef.current) clearTimeout(navTimerRef.current)
+    },
+    [],
+  )
 
   const create = useMutation({
     mutationFn: () => {
@@ -104,7 +112,7 @@ export function SiteCreatePage() {
       })
       // Let the final "Ready" step render briefly before navigating away.
       const d = domain.trim().toLowerCase()
-      setTimeout(() => {
+      navTimerRef.current = setTimeout(() => {
         streamRef.current?.abort()
         navigate({ to: "/sites/$domain", params: { domain: d } })
       }, 1200)
