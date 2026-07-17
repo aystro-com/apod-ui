@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ApiClient, ApiError } from "@/lib/api"
 
 const STORAGE_KEY = "apod.connection"
@@ -91,18 +92,23 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => loadStored())
+  const queryClient = useQueryClient()
 
   const disconnect = useCallback(() => {
     const current = session ?? loadStored()
     clearStored()
     setSession(null)
+    // Drop all cached query data so the next identity (a different user, or the
+    // same browser pointed at another server) can't see the previous session's
+    // sites/users/tokens/env flash in from the shared, server-agnostic cache.
+    queryClient.clear()
     // Best-effort server-side revocation for password sessions.
     if (current?.kind === "session") {
       new ApiClient({ baseUrl: current.baseUrl, apiKey: current.token })
         .logout()
         .catch(() => {})
     }
-  }, [session])
+  }, [session, queryClient])
 
   const connect = useCallback(
     async (baseUrl: string, credentials: Credentials, remember: boolean) => {
@@ -190,9 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onUnauthorized: () => {
         clearStored()
         setSession(null)
+        // Same reasoning as disconnect(): never leave one identity's cached
+        // data behind for the next.
+        queryClient.clear()
       },
     })
-  }, [session])
+  }, [session, queryClient])
 
   const value = useMemo(
     () => ({ session, api, connect, disconnect }),

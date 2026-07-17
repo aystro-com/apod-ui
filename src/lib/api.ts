@@ -427,7 +427,14 @@ export class ApiClient {
     }
 
     if (res.status === 401) {
-      this.onUnauthorized?.()
+      // A "2fa_required" 401 is an expected step-up challenge on an otherwise
+      // valid session (e.g. changing a password with 2FA on) — NOT an expired
+      // session. Firing onUnauthorized here would clear the session and bounce
+      // the user to the login screen instead of letting the caller prompt for a
+      // code, making self-service 2FA password changes impossible.
+      if (!/2fa_required/.test(envelope.error ?? "")) {
+        this.onUnauthorized?.()
+      }
       throw new ApiError(401, envelope.error || "Session expired or API key revoked.")
     }
     if (res.status === 429) {
@@ -491,7 +498,10 @@ export class ApiClient {
   ): Promise<void> => {
     const url = this.baseUrl + this.sitePath(domain, "/events")
     let res: Response | undefined
-    for (let attempt = 0; attempt < 4; attempt++) {
+    // Retry on 404 for ~15s to cover the gap between firing createSite and the
+    // site record existing — a slow provision (image pull) can take several
+    // seconds, and giving up after ~1.6s left the create with no live progress.
+    for (let attempt = 0; attempt < 30; attempt++) {
       if (signal?.aborted) return
       try {
         res = await fetch(url, {
@@ -502,7 +512,7 @@ export class ApiClient {
         return // aborted or network gone — nothing to stream
       }
       if (res.status !== 404) break
-      await new Promise((r) => setTimeout(r, 400)) // record not created yet
+      await new Promise((r) => setTimeout(r, 500)) // record not created yet
     }
     if (!res || !res.ok || !res.body) return
 
@@ -523,12 +533,14 @@ export class ApiClient {
         const frames = buf.split("\n\n")
         buf = frames.pop() ?? ""
         for (const frame of frames) {
-          const data = frame
-            .split("\n")
-            .find((l) => l.startsWith("data: "))
-          if (!data) continue
+          // Per the SSE spec the space after "data:" is optional, so match
+          // "data:" and strip a single optional leading space — otherwise a
+          // server emitting "data:{...}" would have every event silently dropped.
+          const line = frame.split("\n").find((l) => l.startsWith("data:"))
+          if (!line) continue
+          const payload = line.slice(5).replace(/^ /, "")
           try {
-            const ev = normalizeDeployEvent(JSON.parse(data.slice(6)))
+            const ev = normalizeDeployEvent(JSON.parse(payload))
             if (ev) onEvent(ev)
           } catch {
             /* ignore malformed frame */

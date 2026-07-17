@@ -1,11 +1,14 @@
 import { act, renderHook } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { describe, expect, it } from "vitest"
 import { mockApi, TEST_BASE, TEST_KEY } from "@/test/utils"
 import { AuthProvider, useAuth } from "./auth"
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
+  <QueryClientProvider client={new QueryClient()}>
+    <AuthProvider>{children}</AuthProvider>
+  </QueryClientProvider>
 )
 
 const keyCreds = { kind: "key" as const, apiKey: TEST_KEY }

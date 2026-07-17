@@ -196,6 +196,9 @@ function TwoFactorCard({ enabled }: { enabled: boolean }) {
     onSuccess: () => {
       setDisableOpen(false)
       setDisableCode("")
+      // Clear the recovery codes shown during enrollment — they belong to the
+      // now-wiped secret and must not keep rendering after disabling.
+      setRecovery(null)
     },
   })
 

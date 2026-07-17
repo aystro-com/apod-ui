@@ -1,12 +1,17 @@
 import type { ReactNode } from "react"
 import { renderHook, waitFor } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { AuthProvider } from "@/lib/auth"
 import { seedSession } from "@/test/utils"
 import { useSiteEventStream } from "./use-site-stream"
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>
+  return (
+    <QueryClientProvider client={new QueryClient()}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  )
 }
 
 /** A fetch Response whose body streams the given events as SSE `data:` frames. */

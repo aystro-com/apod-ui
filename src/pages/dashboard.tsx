@@ -180,7 +180,7 @@ export function DashboardPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Progress value={Math.min(s.memory_percent, 100)} />
+                        <Progress value={Math.min(s.memory_percent ?? 0, 100)} />
                       </TableCell>
                     </TableRow>
                   ))}

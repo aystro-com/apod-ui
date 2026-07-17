@@ -105,13 +105,24 @@ export function SidebarProvider({
         _setOpen(openState);
       }
 
-      // This sets the cookie to keep the sidebar state.
-      await cookieStore.set({
-        expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
-        name: SIDEBAR_COOKIE_NAME,
-        path: "/",
-        value: String(openState),
-      });
+      // Persist the sidebar state. The Cookie Store API is Chromium-only; in
+      // Firefox/Safari `cookieStore` is undefined, so guard it (and swallow
+      // failures) — otherwise every toggle throws an unhandled promise rejection
+      // and the state silently never saves. Fall back to document.cookie.
+      try {
+        if (typeof cookieStore !== "undefined") {
+          await cookieStore.set({
+            expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
+            name: SIDEBAR_COOKIE_NAME,
+            path: "/",
+            value: String(openState),
+          });
+        } else {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+        }
+      } catch {
+        /* cookie persistence unavailable — state stays in-memory */
+      }
     },
     [setOpenProp, open],
   );
